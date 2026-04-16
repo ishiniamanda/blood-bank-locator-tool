@@ -1,11 +1,11 @@
 import java.util.*;
 
-
 public class Main {
     public static void main(String[] args) {
-      
+
         Graph g = new Graph();
 
+        // GRAPH DATA
         g.addEdge("A", "B", 4);
         g.addEdge("A", "C", 6);
         g.addEdge("A", "D", 7);
@@ -16,23 +16,19 @@ public class Main {
         g.addEdge("D", "F", 2);
         g.addEdge("E", "G", 3);
 
-        System.out.println("--- Hospital & Blood Bank Network ---");
-        g.display();
+        Scanner sc = new Scanner(System.in);
 
-       
-        String startPoint = "A";
-        System.out.println("\n--- Calculating Shortest Paths from " + startPoint + " ---");
-        
-    
-        Map<String, Integer> shortestPaths = Dijkstra.findShortestPaths(g, startPoint);
+        System.out.print("Enter start node: ");
+        String start = sc.nextLine();
 
-  
-        System.out.println("Destination | Travel Time (Minutes)");
-        System.out.println("-----------------------------------");
-        for (String destination : shortestPaths.keySet()) {
-            int time = shortestPaths.get(destination);
-            String timeDisplay = (time == Integer.MAX_VALUE) ? "Unreachable" : time + " mins";
-            System.out.println("Location " + destination + " : " + timeDisplay);
+        // CALL PARTNER DIJKSTRA
+        Map<String, Integer> result = Dijkstra.findShortestPaths(g, start);
+
+        // PRINT RESULT
+        System.out.println("\nShortest Distances from " + start + ":");
+
+        for (Map.Entry<String, Integer> entry : result.entrySet()) {
+            System.out.println(start + " -> " + entry.getKey() + " = " + entry.getValue());
         }
     }
 }
