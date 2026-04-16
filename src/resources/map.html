@@ -4,60 +4,80 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        /* This removes the white gaps and grey space */
+        /* This eliminates the white borders and forces full-screen map */
         body, html { 
             margin: 0; 
             padding: 0; 
             height: 100%; 
             width: 100%; 
             overflow: hidden; 
+            background-color: #f2f2f2; /* Matches map color to reduce flickering */
         }
         #map { 
             height: 100vh; 
             width: 100vw; 
-            background: #e0e0e0; /* Match the grey if tiles are still loading */
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <script>
-        // Initializing map centered on Sri Lanka
-        var map = L.map('map').setView([6.9271, 79.8612], 8); 
+        // 1. Initialize map centered on Sri Lanka
+        var map = L.map('map', {
+            zoomControl: true,
+            fadeAnimation: true
+        }).setView([7.8731, 80.7718], 7); 
         
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+        // 2. Use CartoDB Light tiles (Faster loading & cleaner look)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors © CARTO'
         }).addTo(map);
 
         var currentLayerGroup = L.layerGroup().addTo(map);
 
+        // --- RENDER FIX: Force the map to check window size multiple times ---
+        function forceRefresh() {
+            map.invalidateSize();
+        }
+
+        // Run refresh at different intervals to catch slow UI rendering
+        setTimeout(forceRefresh, 100);
+        setTimeout(forceRefresh, 500);
+        setTimeout(forceRefresh, 2000);
+
+        // 3. Main function called by Java
         function drawRoute(lat1, lon1, lat2, lon2) {
-            // Clear previous routes/markers so it doesn't get messy
+            // Clear old routes/markers
             currentLayerGroup.clearLayers();
 
             var latlngs = [[lat1, lon1], [lat2, lon2]];
             
-            // Draw the line (The Route)
+            // Draw a thick, dashed red line for the route
             var polyline = L.polyline(latlngs, {
-                color: 'red', 
-                weight: 5, 
-                opacity: 0.7,
-                dashArray: '10, 10' // Makes it look like a path
+                color: '#e74c3c', 
+                weight: 6, 
+                opacity: 0.8,
+                dashArray: '10, 15' 
             }).addTo(currentLayerGroup);
             
-            // Add a marker for the Start (Hospital/Center)
-            L.marker([lat1, lon1]).addTo(currentLayerGroup)
-                .bindPopup("Your Location (Hospital)")
+            // Add Start Marker (Hospital/Your Location)
+            var startMarker = L.marker([lat1, lon1]).addTo(currentLayerGroup)
+                .bindPopup("<b>Starting Point</b>")
                 .openPopup();
 
-            // Add a marker for the Destination (Donor)
-            L.marker([lat2, lon2]).addTo(currentLayerGroup)
-                .bindPopup("Emergency Donor Found")
-                .openPopup();
+            // Add Destination Marker (Blood Center)
+            var endMarker = L.marker([lat2, lon2]).addTo(currentLayerGroup)
+                .bindPopup("<b>Blood Donor Center</b>");
 
-            // Auto-zoom to show the whole line
-            map.fitBounds(polyline.getBounds(), {padding: [50, 50]});
+            // Smoothly zoom the map to fit both points
+            map.fitBounds(polyline.getBounds(), {padding: [70, 70]});
+            
+            // Final refresh to ensure tiles fill the newly zoomed area
+            setTimeout(forceRefresh, 300);
         }
+
+        // Listen for window resize and fix map automatically
+        window.addEventListener('resize', forceRefresh);
     </script>
 </body>
 </html>
