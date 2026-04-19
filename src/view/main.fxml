@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.web.WebView?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="app.Controller">
+
+    <!-- TOP HEADER -->
+    <top>
+        <HBox style="-fx-background-color:#2c3e50; -fx-padding:15;">
+            <Label text="EMERGENCY BLOOD BANK DASHBOARD"
+                   style="-fx-text-fill:white; -fx-font-size:18px; -fx-font-weight:bold;"/>
+        </HBox>
+    </top>
+
+    <!-- LEFT PANEL -->
+    <left>
+        <VBox spacing="10"
+              style="-fx-padding:15; -fx-background-color:#ecf0f1;">
+
+            <Label text="Search Panel"
+                   style="-fx-font-weight:bold;"/>
+
+            <TextField fx:id="startField"
+                       promptText="Start Location (A)"/>
+
+            <TextField fx:id="bloodField"
+                       promptText="Blood Type (A+)"/>
+
+            <Button text="Find Nearest Hospital"
+                    onAction="#handleSearch"
+                    style="-fx-background-color:#27ae60; -fx-text-fill:white;"/>
+
+        </VBox>
+    </left>
+
+    <!-- CENTER -->
+    <center>
+        <SplitPane orientation="HORIZONTAL"
+                    prefWidth="1000"
+                    prefHeight="650">
+
+            <!-- RESULTS -->
+            <VBox spacing="10"
+                  style="-fx-padding:15;"
+                  minWidth="300">
+
+                <Label text="Results"
+                       style="-fx-font-weight:bold;"/>
+
+                <TextArea fx:id="outputArea"
+                          wrapText="true"
+                          prefHeight="600"/>
+            </VBox>
+
+            <!-- REAL OPENSTREETMAP VIEW -->
+            <VBox spacing="10"
+                  style="-fx-padding:10;"
+                  minWidth="600">
+
+                <Label text="Map View (OpenStreetMap)"
+                       style="-fx-font-weight:bold;"/>
+
+                <WebView fx:id="mapView"
+                         prefWidth="800"
+                         prefHeight="600"/>
+            </VBox>
+
+        </SplitPane>
+    </center>
+
+</BorderPane>
