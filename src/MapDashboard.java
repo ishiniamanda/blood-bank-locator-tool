@@ -180,15 +180,25 @@ public class MapDashboard extends Application {
             }
         });
 
-        VBox mainLayout = new VBox(20);
-        mainLayout.setAlignment(Pos.TOP_CENTER);
-        mainLayout.setPadding(new Insets(40));
-        mainLayout.getChildren().addAll(titleLabel, bloodField, cityField, searchButton, donorButton, resultsBox);
+       // ✅ REPLACE THEM WITH THIS:
+VBox leftSide = new VBox(20); // This is your original search UI
+leftSide.setAlignment(Pos.TOP_CENTER);
+leftSide.setPadding(new Insets(20));
+leftSide.getChildren().addAll(titleLabel, bloodField, cityField, searchButton, donorButton, resultsBox);
 
-        Scene scene = new Scene(mainLayout, 650, 600);
-        stage.setTitle("Emergency Blood Bank Locator Tracker");
-        stage.setScene(scene);
-        stage.show();
+VBox rightSide = createVisualHeatMap(); // This is the new Heat Map from Step 1
+
+// This HBox puts them side-by-side
+HBox sideBySideLayout = new HBox(30); 
+sideBySideLayout.setPadding(new Insets(20));
+sideBySideLayout.setAlignment(Pos.CENTER);
+sideBySideLayout.getChildren().addAll(leftSide, rightSide);
+
+// Now we show the sideBySideLayout instead of just the mainLayout
+Scene scene = new Scene(sideBySideLayout, 1000, 700); 
+stage.setTitle("Emergency Blood Bank Locator Tracker");
+stage.setScene(scene);
+stage.show();
     }
 
     private List<String> getCompatibleBloodTypes(String patientType) {
@@ -273,4 +283,53 @@ public void saveDonorToFile(Donor donor) {
             this.distance = distance;
         }
     }
+    // Method to create the Visual Heat Map Grid
+private VBox createVisualHeatMap() {
+    VBox container = new VBox(15);
+    container.setPadding(new Insets(20));
+    container.setAlignment(Pos.TOP_CENTER);
+    container.setStyle("-fx-background-color: #f8f9fa; -fx-border-color: #dcdde1; -fx-border-radius: 10; -fx-background-radius: 10;");
+
+    Label header = new Label("LIVE SUPPLY HEAT MAP");
+    header.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+    header.setStyle("-fx-text-fill: #34495e;");
+
+    GridPane grid = new GridPane();
+    grid.setHgap(10);
+    grid.setVgap(10);
+    grid.setAlignment(Pos.CENTER);
+
+    String[] types = {"A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"};
+    
+    for (int i = 0; i < types.length; i++) {
+        String type = types[i];
+        ArrayList<Donor> list = donorTree.search(type);
+        int count = (list == null) ? 0 : list.size();
+
+        // Tile Styling
+        VBox tile = new VBox(5);
+        tile.setPrefSize(90, 70);
+        tile.setAlignment(Pos.CENTER);
+        
+        // Color Logic: Red for empty, Yellow for low, Green for good supply
+        String color;
+        if (count == 0) color = "#ff7675";      // Red
+        else if (count < 3) color = "#ffeaa7"; // Yellow
+        else color = "#55efc4";                // Green
+
+        tile.setStyle("-fx-background-color: " + color + "; -fx-background-radius: 8; -fx-border-color: #636e72; -fx-border-radius: 8;");
+        
+        Label typeLabel = new Label(type);
+        typeLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        
+        Label countLabel = new Label("Qty: " + count);
+        countLabel.setStyle("-fx-font-size: 12px;");
+        
+        tile.getChildren().addAll(typeLabel, countLabel);
+        grid.add(tile, i % 2, i / 2); // Arrange in 2 columns
+    }
+
+    container.getChildren().addAll(header, grid);
+    return container;
+}
 }
