@@ -57,13 +57,13 @@ public class MapDashboard extends Application {
         tabPane.getTabs().addAll(patientTab, queueTab, adminTab);
 
         Scene scene = new Scene(tabPane, 750, 800);
-        stage.setTitle("Emergency Blood Bank System - Master Branch");
+        stage.setTitle("Emergency Blood Bank System - Final Master Branch");
         stage.setScene(scene);
         stage.show();
     }
 
     // ==========================================
-    // PATIENT DASHBOARD (SEARCH & RESULTS)
+    // 1. PATIENT DASHBOARD (SEARCH & LIVE ROUTING)
     // ==========================================
     private VBox createPatientDashboard(Stage stage) {
         VBox layout = new VBox(20);
@@ -80,7 +80,7 @@ public class MapDashboard extends Application {
         searchCard.setAlignment(Pos.CENTER);
 
         TextField bloodField = new TextField(); bloodField.setPromptText("Blood Type (e.g., A+)");
-        TextField cityField = new TextField(); cityField.setPromptText("Location (e.g., Colombo)");
+        TextField cityField = new TextField(); cityField.setPromptText("Enter City (for list distance)");
         styleInputField(bloodField); styleInputField(cityField);
         
         Button searchButton = new Button("🔍 SEARCH EMERGENCY");
@@ -135,17 +135,17 @@ public class MapDashboard extends Application {
                     Label name = new Label(res.donor.name + " (" + res.donor.bloodType + ")");
                     name.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
                     name.setStyle(res.donor.bloodType.equals(patientType) ? "-fx-text-fill: #27ae60;" : "-fx-text-fill: #2980b9;");
-                    Label stock = new Label("Supply: " + res.donor.supply + " | Demand: " + res.donor.demand);
-                    stock.setStyle(res.donor.supply < res.donor.demand ? "-fx-text-fill: #c0392b; -fx-font-weight: bold;" : "-fx-text-fill: #7f8c8d;");
-                    info.getChildren().addAll(name, stock, new Label(String.format("📍 %.1f km", res.distance)));
+                    info.getChildren().addAll(name, new Label("Supply: " + res.donor.supply), new Label(String.format("📍 Approx. %.1f km", res.distance)));
                     
                     Region s = new Region(); HBox.setHgrow(s, Priority.ALWAYS);
                     
                     Button map = new Button("View Route 🗺️"); 
                     stylePrimaryButton(map, "#3498db", "#2980b9");
                     map.setOnAction(ev -> {
-                        String url = "https://www.google.com/maps/dir/?api=1&origin=" + userCity.replace(" ", "+") + 
-                                     "&destination=" + res.donor.lat + "," + res.donor.lon + "&travelmode=driving";
+                        String destination = res.donor.lat + "," + res.donor.lon;
+                        // Forces Google Maps to use browser's real-time GPS
+                        String url = "https://www.google.com/maps/dir/?api=1&destination=" 
+                                   + destination + "&travelmode=driving";
                         getHostServices().showDocument(url);
                     });
 
@@ -186,7 +186,7 @@ public class MapDashboard extends Application {
     }
 
     // ==========================================
-    // ADMIN PORTAL (ADVANCED DASHBOARD)
+    // 2. ADMIN PORTAL (ADVANCED DASHBOARD)
     // ==========================================
     private VBox createAdminPortal(Stage stage) {
         VBox mainLayout = new VBox(25);
@@ -196,7 +196,6 @@ public class MapDashboard extends Application {
 
         HBox contentArea = new HBox(30); contentArea.setAlignment(Pos.TOP_CENTER);
 
-        // MANUAL ENTRY CARD
         VBox manualEntryCard = new VBox(20); manualEntryCard.setMinWidth(380);
         manualEntryCard.setStyle("-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15;");
         manualEntryCard.setEffect(cardShadow);
@@ -221,26 +220,25 @@ public class MapDashboard extends Application {
                 double[] c = getCoordinatesFromCity(cityC.getValue());
                 donorTree.insert(new Donor(hName.getText(), bloodC.getValue(), c[0], c[1], Integer.parseInt(sF.getText()), Integer.parseInt(dF.getText())));
                 status.setText("✅ Added Successfully!"); status.setTextFill(Color.GREEN);
-            } catch (Exception ex) { status.setText("❌ Error."); status.setTextFill(Color.RED); }
+            } catch (Exception ex) { status.setText("❌ Error Check Inputs."); status.setTextFill(Color.RED); }
         });
-        manualEntryCard.getChildren().addAll(new Label("Manual Entry"), new Separator(), formGrid, addB, status);
+        manualEntryCard.getChildren().addAll(new Label("Manual Hospital Entry"), new Separator(), formGrid, addB, status);
 
-        // BULK UPLOAD CARD
         VBox bulkCard = new VBox(25); bulkCard.setMinWidth(300);
         bulkCard.setStyle("-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15;");
         bulkCard.setEffect(cardShadow);
 
-        Button loadB = new Button("Upload CSV"); stylePrimaryButton(loadB, "#f39c12", "#d35400");
+        Button loadB = new Button("Upload CSV (150+ Records)"); stylePrimaryButton(loadB, "#f39c12", "#d35400");
         Label bulkStatus = new Label("No file loaded.");
         loadB.setOnAction(e -> {
             java.io.File f = new FileChooser().showOpenDialog(stage);
             if(f != null) {
-                bulkStatus.setText("⏳ Importing 150+ records... please wait.");
+                bulkStatus.setText("⏳ Processing 150+ records...");
                 Thread importThread = new Thread(() -> {
                     donorTree = new RedBlackTree(); 
                     int count = loadDatabaseFromCSV(f.getAbsolutePath());
                     Platform.runLater(() -> {
-                        bulkStatus.setText("✅ Loaded " + count + " records.");
+                        bulkStatus.setText("✅ Loaded " + count + " records in seconds.");
                         bulkStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
                     });
                 });
@@ -255,7 +253,7 @@ public class MapDashboard extends Application {
     }
 
     // ==========================================
-    // VOLUNTEER REGISTRATION (PROFESSIONAL UI)
+    // 3. VOLUNTEER REGISTRATION (IMPROVED UI)
     // ==========================================
     private void openVolunteerRegistrationPopup(Stage parentStage) {
         Stage popupStage = new Stage();
@@ -271,7 +269,7 @@ public class MapDashboard extends Application {
         eligibilityPane.setStyle("-fx-background-color: #fdf2f2; -fx-border-color: #e74c3c; -fx-border-width: 0 0 2 0;");
         Label eTitle = new Label("Basic Donor Eligibility Criteria");
         eTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15)); eTitle.setTextFill(Color.web("#c0392b"));
-        Label eList = new Label("• Aged 18–60 years.\n• Minimum 4 months between donations.\n• Weight above 50 kg.\n• Not pregnant; free from serious illness.");
+        Label eList = new Label("• Aged 18–60 years.\n• Minimum 4 months between donations.\n• Weight above 50 kg.\n• Not pregnant; free from illness.");
         eList.setTextFill(Color.web("#7f8c8d")); eligibilityPane.getChildren().addAll(eTitle, eList);
 
         GridPane grid = new GridPane(); grid.setPadding(new Insets(20)); grid.setHgap(10); grid.setVgap(12);
@@ -313,51 +311,14 @@ public class MapDashboard extends Application {
     }
 
     // ==========================================
-    // UTILITY & HELPER METHODS (FIXES ERRORS)
+    // 4. EMERGENCY DISPATCH QUEUE
     // ==========================================
-    private void styleInputField(TextField f) {
-        f.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 8; -fx-border-color: #bdc3c7;");
-    }
-
-    private void stylePrimaryButton(Button b, String c, String h) {
-        String s = "-fx-background-color: "+c+"; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 25; -fx-background-radius: 8; -fx-cursor: hand;";
-        b.setStyle(s); 
-        b.setOnMouseEntered(e -> b.setStyle("-fx-background-color: "+h+";"+s.substring(29))); 
-        b.setOnMouseExited(e -> b.setStyle(s));
-    }
-
-    private void showVolunteerDetailsPopup(Volunteer v) {
-        Stage s = new Stage(); s.setTitle("Donor Profile");
-        GridPane g = new GridPane(); g.setPadding(new Insets(20)); g.setHgap(10); g.setVgap(10);
-        g.add(new Label("Name: " + v.name), 0, 0); g.add(new Label("Age: " + v.age), 0, 1);
-        g.add(new Label("Weight: " + v.weight + " kg"), 0, 2); g.add(new Label("Blood: " + v.bloodType), 0, 3);
-        s.setScene(new Scene(g, 280, 200)); s.show();
-    }
-
-    private int loadDatabaseFromCSV(String p) {
-        int count = 0;
-        try (Scanner sc = new Scanner(new java.io.File(p))) {
-            if(sc.hasNextLine()) sc.nextLine();
-            while(sc.hasNextLine()){
-                String line = sc.nextLine(); if(line.trim().isEmpty()) continue;
-                String[] d = line.split(",");
-                if(d.length >= 5){
-                    String cityName = d[1].trim();
-                    if (!cityCoordinates.containsKey(cityName)) Thread.sleep(1000); // Prevent API ban
-                    double[] coords = getCoordinatesFromCity(cityName);
-                    if(coords != null) {
-                        donorTree.insert(new Donor(d[0].trim(), d[2].trim(), coords[0], coords[1], Integer.parseInt(d[3].trim()), Integer.parseInt(d[4].trim())));
-                        count++;
-                    }
-                }
-            }
-        } catch (Exception e) {} return count;
-    }
-
-    private void saveVolunteerToFile(Volunteer v) {
-        try (BufferedWriter w = new BufferedWriter(new FileWriter("volunteers.txt", true))) {
-            w.write(v.toCSV()); w.newLine();
-        } catch (IOException e) {}
+    private VBox createEmergencyQueueUI() {
+        VBox v = new VBox(15); v.setPadding(new Insets(30)); v.setAlignment(Pos.TOP_CENTER);
+        v.getChildren().addAll(new Label("🚑 Emergency Dispatch Priority Queue"), queueListView);
+        Button p = new Button("PROCESS NEXT EMERGENCY"); stylePrimaryButton(p, "#c0392b", "#a93226");
+        p.setOnAction(e -> { if(!requestHeap.isEmpty()){ requestHeap.poll(); updateQueueDisplay(); } });
+        v.getChildren().add(p); return v;
     }
 
     private void updateQueueDisplay() {
@@ -365,36 +326,9 @@ public class MapDashboard extends Application {
         for(EmergencyRequest r : requestHeap) queueListView.getItems().add(r.toString());
     }
 
-    private VBox createEmergencyQueueUI() {
-        VBox v = new VBox(15); v.setPadding(new Insets(30)); v.setAlignment(Pos.TOP_CENTER);
-        v.getChildren().addAll(new Label("🚑 Dispatch Queue"), queueListView);
-        Button p = new Button("PROCESS"); stylePrimaryButton(p, "#c0392b", "#a93226");
-        p.setOnAction(e -> { if(!requestHeap.isEmpty()){ requestHeap.poll(); updateQueueDisplay(); } });
-        v.getChildren().add(p); return v;
-    }
-
-    private Label createAlertMessage(String t) {
-        Label l = new Label(t); 
-        l.setStyle("-fx-text-fill: #c0392b; -fx-background-color: #fadbd8; -fx-padding: 10; -fx-background-radius: 8;"); 
-        return l;
-    }
-
-    private List<String> getCompatibleBloodTypes(String t) {
-        switch (t) {
-            case "O-": return Arrays.asList("O-"); case "O+": return Arrays.asList("O+", "O-");
-            case "A-": return Arrays.asList("A-", "O-"); case "A+": return Arrays.asList("A+", "A-", "O+", "O-");
-            case "B-": return Arrays.asList("B-", "O-"); case "B+": return Arrays.asList("B+", "B-", "O+", "O-");
-            case "AB-": return Arrays.asList("AB-", "A-", "B-", "O-"); case "AB+": return Arrays.asList("AB+", "AB-", "A+", "A-", "B+", "B-", "O+", "O-");
-            default: return new ArrayList<>();
-        }
-    }
-
-    private double calculateDistance(double la1, double lo1, double la2, double lo2) {
-        double dLat = Math.toRadians(la2 - la1), dLon = Math.toRadians(lo2 - lo1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(Math.toRadians(la1)) * Math.cos(Math.toRadians(la2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-    }
-
+    // ==========================================
+    // 5. UTILITY & DATA HELPER METHODS
+    // ==========================================
     private void initializeCityCoordinates() {
         cityCoordinates = new HashMap<>();
         cityCoordinates.put("Colombo", new double[]{6.9271, 79.8612});
@@ -424,6 +358,65 @@ public class MapDashboard extends Application {
                 return found;
             }
         } catch (Exception e) {} return null;
+    }
+
+    private int loadDatabaseFromCSV(String p) {
+        int count = 0;
+        try (Scanner sc = new Scanner(new java.io.File(p))) {
+            if(sc.hasNextLine()) sc.nextLine();
+            while(sc.hasNextLine()){
+                String line = sc.nextLine(); if(line.trim().isEmpty()) continue;
+                String[] d = line.split(",");
+                if(d.length >= 5){
+                    String cityName = d[1].trim();
+                    if (!cityCoordinates.containsKey(cityName)) Thread.sleep(1000); 
+                    double[] coords = getCoordinatesFromCity(cityName);
+                    if(coords != null) {
+                        donorTree.insert(new Donor(d[0].trim(), d[2].trim(), coords[0], coords[1], Integer.parseInt(d[3].trim()), Integer.parseInt(d[4].trim())));
+                        count++;
+                    }
+                }
+            }
+        } catch (Exception e) {} return count;
+    }
+
+    private void styleInputField(TextField f) { f.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 8; -fx-border-color: #bdc3c7;"); }
+
+    private void stylePrimaryButton(Button b, String c, String h) {
+        String s = "-fx-background-color: "+c+"; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 25; -fx-background-radius: 8; -fx-cursor: hand;";
+        b.setStyle(s); b.setOnMouseEntered(e -> b.setStyle("-fx-background-color: "+h+";"+s.substring(29))); b.setOnMouseExited(e -> b.setStyle(s));
+    }
+
+    private void showVolunteerDetailsPopup(Volunteer v) {
+        Stage s = new Stage(); s.setTitle("Donor Profile");
+        GridPane g = new GridPane(); g.setPadding(new Insets(20)); g.setHgap(10); g.setVgap(10);
+        g.add(new Label("Name: " + v.name), 0, 0); g.add(new Label("Age: " + v.age), 0, 1);
+        g.add(new Label("Weight: " + v.weight + " kg"), 0, 2); g.add(new Label("Blood: " + v.bloodType), 0, 3);
+        s.setScene(new Scene(g, 280, 200)); s.show();
+    }
+
+    private void saveVolunteerToFile(Volunteer v) {
+        try (BufferedWriter w = new BufferedWriter(new FileWriter("volunteers.txt", true))) {
+            w.write(v.toCSV()); w.newLine();
+        } catch (IOException e) {}
+    }
+
+    private Label createAlertMessage(String t) { Label l = new Label(t); l.setStyle("-fx-text-fill: #c0392b; -fx-background-color: #fadbd8; -fx-padding: 10; -fx-background-radius: 8;"); return l; }
+
+    private List<String> getCompatibleBloodTypes(String t) {
+        switch (t) {
+            case "O-": return Arrays.asList("O-"); case "O+": return Arrays.asList("O+", "O-");
+            case "A-": return Arrays.asList("A-", "O-"); case "A+": return Arrays.asList("A+", "A-", "O+", "O-");
+            case "B-": return Arrays.asList("B-", "O-"); case "B+": return Arrays.asList("B+", "B-", "O+", "O-");
+            case "AB-": return Arrays.asList("AB-", "A-", "B-", "O-"); case "AB+": return Arrays.asList("AB+", "AB-", "A+", "A-", "B+", "B-", "O+", "O-");
+            default: return new ArrayList<>();
+        }
+    }
+
+    private double calculateDistance(double la1, double lo1, double la2, double lo2) {
+        double dLat = Math.toRadians(la2 - la1), dLon = Math.toRadians(lo2 - lo1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(Math.toRadians(la1)) * Math.cos(Math.toRadians(la2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
     }
 
     public static void main(String[] args) { launch(args); }
