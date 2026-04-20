@@ -57,13 +57,13 @@ public class MapDashboard extends Application {
         tabPane.getTabs().addAll(patientTab, queueTab, adminTab);
 
         Scene scene = new Scene(tabPane, 750, 800);
-        stage.setTitle("Emergency Blood Bank System - Final Master Branch");
+        stage.setTitle("Emergency Blood Bank System - Live GPS Version");
         stage.setScene(scene);
         stage.show();
     }
 
     // ==========================================
-    // 1. PATIENT DASHBOARD (SEARCH & LIVE ROUTING)
+    // 1. PATIENT DASHBOARD (SEARCH & LIVE GPS ROUTING)
     // ==========================================
     private VBox createPatientDashboard(Stage stage) {
         VBox layout = new VBox(20);
@@ -139,11 +139,13 @@ public class MapDashboard extends Application {
                     
                     Region s = new Region(); HBox.setHgrow(s, Priority.ALWAYS);
                     
+                    // --- LIVE GPS ROUTING FIX ---
                     Button map = new Button("View Route 🗺️"); 
                     stylePrimaryButton(map, "#3498db", "#2980b9");
                     map.setOnAction(ev -> {
                         String destination = res.donor.lat + "," + res.donor.lon;
-                        // Forces Google Maps to use browser's real-time GPS
+                        // Using the official directions API with no origin forces the browser 
+                        // to use the user's real-time GPS location.
                         String url = "https://www.google.com/maps/dir/?api=1&destination=" 
                                    + destination + "&travelmode=driving";
                         getHostServices().showDocument(url);
