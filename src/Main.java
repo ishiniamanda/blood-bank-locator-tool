@@ -21,7 +21,7 @@ public class Main {
         System.out.print("Enter start node: ");
         String start = sc.nextLine();
 
-        // CALL PARTNER DIJKSTRA
+        // CALL PARTNER DIJKSTRA//
         Map<String, Integer> result = Dijkstra.findShortestPaths(g, start);
 
         // PRINT RESULT
