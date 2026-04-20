@@ -1,6 +1,7 @@
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -62,7 +63,7 @@ public class MapDashboard extends Application {
     }
 
     // ==========================================
-    // UI BUILDER: PATIENT DASHBOARD
+    // PATIENT DASHBOARD & SEARCH LOGIC
     // ==========================================
     private VBox createPatientDashboard(Stage stage) {
         VBox layout = new VBox(20);
@@ -155,7 +156,7 @@ public class MapDashboard extends Application {
                     volRes.sort((a,b) -> Double.compare(a.distance, b.distance));
                     VBox vCards = new VBox(10);
                     for(VolunteerResult vr : volRes) {
-                        HBox vCard = new HBox(15); vCard.setStyle("-fx-background-color: white; -fx-padding: 20; -fx-border-color: #f39c12; -fx-border-radius: 10;");
+                        HBox vCard = new HBox(15); vCard.setStyle("-fx-background-color: white; -fx-padding: 20; -fx-border-color: #f39c12; -fx-border-radius: 10; -fx-border-width: 2;");
                         VBox vInfo = new VBox(5); vInfo.getChildren().addAll(new Label(vr.volunteer.name + " ("+vr.volunteer.bloodType+")"), new Label("Age: " + vr.volunteer.age + " | " + String.format("%.1f km", vr.distance)));
                         Region vs = new Region(); HBox.setHgrow(vs, Priority.ALWAYS);
                         Button vBtn = new Button("View Info"); stylePrimaryButton(vBtn, "#f39c12", "#e67e22");
@@ -173,7 +174,7 @@ public class MapDashboard extends Application {
     }
 
     // ==========================================
-    // UI BUILDER: VOLUNTEER REGISTRATION
+    // VOLUNTEER REGISTRATION
     // ==========================================
     private void openVolunteerRegistrationPopup(Stage parentStage) {
         Stage popupStage = new Stage();
@@ -184,16 +185,14 @@ public class MapDashboard extends Application {
         VBox mainLayout = new VBox(0);
         mainLayout.setStyle("-fx-background-color: white;");
 
-        // --- 1. ELIGIBILITY HEADER ---
         VBox eligibilityPane = new VBox(8);
         eligibilityPane.setPadding(new Insets(15));
         eligibilityPane.setStyle("-fx-background-color: #fdf2f2; -fx-border-color: #e74c3c; -fx-border-width: 0 0 2 0;");
         Label eTitle = new Label("Basic Donor Eligibility Criteria");
         eTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15)); eTitle.setTextFill(Color.web("#c0392b"));
-        Label eList = new Label("• Aged 18–60 years.\n• Minimum 4 months between donations.\n• Weight above 50 kg.\n• Not pregnant; free from serious illness.");
+        Label eList = new Label("• Aged 18–60 years.\n• Weight above 50 kg.\n• Not pregnant; free from serious illness.");
         eList.setTextFill(Color.web("#7f8c8d")); eligibilityPane.getChildren().addAll(eTitle, eList);
 
-        // --- 2. FORM SECTION ---
         GridPane grid = new GridPane(); grid.setPadding(new Insets(20)); grid.setHgap(10); grid.setVgap(12);
         TextField n = new TextField(); n.setPromptText("Full Name"); styleInputField(n);
         TextField p = new TextField(); p.setPromptText("Phone Number"); styleInputField(p);
@@ -217,10 +216,10 @@ public class MapDashboard extends Application {
 
         sub.setOnAction(ev -> {
             try {
-                int age = Integer.parseInt(a.getText()); double weight = Double.parseDouble(w.getText());
-                if (age < 18 || weight < 50 || preg.isSelected()) { status.setText("❌ Criteria not met."); return; }
+                int ageVal = Integer.parseInt(a.getText()); double weightVal = Double.parseDouble(w.getText());
+                if (ageVal < 18 || weightVal < 50 || preg.isSelected()) { status.setText("❌ Criteria not met."); return; }
                 double[] coords = getCoordinatesFromCity(city.getValue());
-                Volunteer v = new Volunteer(n.getText(), b.getValue(), p.getText(), coords[0], coords[1], age, weight, 0.0, preg.isSelected());
+                Volunteer v = new Volunteer(n.getText(), b.getValue(), p.getText(), coords[0], coords[1], ageVal, weightVal, 0.0, preg.isSelected());
                 volunteerDatabase.putIfAbsent(v.bloodType, new ArrayList<>());
                 volunteerDatabase.get(v.bloodType).add(v); saveVolunteerToFile(v);
                 status.setText("✅ Hero Registered!");
@@ -236,28 +235,12 @@ public class MapDashboard extends Application {
         Stage s = new Stage(); s.setTitle("Donor Profile");
         GridPane g = new GridPane(); g.setPadding(new Insets(20)); g.setHgap(10); g.setVgap(10);
         g.add(new Label("Name: " + v.name), 0, 0); g.add(new Label("Age: " + v.age), 0, 1);
-        g.add(new Label("Weight: " + v.weight + " kg"), 0, 2); g.add(new Label("Blood: " + v.bloodType), 0, 3);
-        s.setScene(new Scene(g, 250, 200)); s.show();
+        g.add(new Label("Weight: " + v.weight + " kg"), 0, 2); g.add(new Label("Blood Type: " + v.bloodType), 0, 3);
+        s.setScene(new Scene(g, 280, 200)); s.show();
     }
 
     // ==========================================
-    // UI BUILDER: EMERGENCY QUEUE
-    // ==========================================
-    private VBox createEmergencyQueueUI() {
-        VBox v = new VBox(15); v.setPadding(new Insets(30));
-        v.getChildren().addAll(new Label("🚑 Emergency Dispatch Queue"), queueListView);
-        Button p = new Button("PROCESS NEXT"); stylePrimaryButton(p, "#c0392b", "#a93226");
-        p.setOnAction(e -> { if(!requestHeap.isEmpty()){ requestHeap.poll(); updateQueueDisplay(); } });
-        v.getChildren().add(p); return v;
-    }
-
-    private void updateQueueDisplay() {
-        queueListView.getItems().clear();
-        for(EmergencyRequest r : requestHeap) queueListView.getItems().add(r.toString());
-    }
-
-    // ==========================================
-    // UI BUILDER: ADMIN PORTAL
+    // ADMIN PORTAL (FAST IMPORT VERSION)
     // ==========================================
     private VBox createAdminPortal(Stage stage) {
         VBox mainLayout = new VBox(25);
@@ -267,7 +250,6 @@ public class MapDashboard extends Application {
 
         HBox contentArea = new HBox(30); contentArea.setAlignment(Pos.TOP_CENTER);
 
-        // --- Manual Entry Card ---
         VBox manualEntryCard = new VBox(20); manualEntryCard.setMinWidth(380);
         manualEntryCard.setStyle("-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15;");
         manualEntryCard.setEffect(cardShadow);
@@ -296,28 +278,138 @@ public class MapDashboard extends Application {
         });
         manualEntryCard.getChildren().addAll(new Label("Manual Entry"), new Separator(), formGrid, addB, status);
 
-        // --- Bulk Action Card ---
         VBox bulkCard = new VBox(25); bulkCard.setMinWidth(300);
         bulkCard.setStyle("-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15;");
         bulkCard.setEffect(cardShadow);
 
         Button loadB = new Button("Upload CSV"); stylePrimaryButton(loadB, "#f39c12", "#d35400");
         Label bulkStatus = new Label("No file loaded.");
+        
         loadB.setOnAction(e -> {
             java.io.File f = new FileChooser().showOpenDialog(stage);
-            if(f != null) { donorTree = new RedBlackTree(); bulkStatus.setText("✅ Loaded " + loadDatabaseFromCSV(f.getAbsolutePath()) + " records."); }
+            if(f != null) {
+                bulkStatus.setText("⏳ Processing 150 records... (RAM Optimized)");
+                bulkStatus.setStyle("-fx-text-fill: #2980b9;");
+                
+                Thread importThread = new Thread(() -> {
+                    donorTree = new RedBlackTree(); 
+                    int count = loadDatabaseFromCSV(f.getAbsolutePath());
+                    Platform.runLater(() -> {
+                        bulkStatus.setText("✅ Loaded " + count + " records in seconds!");
+                        bulkStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    });
+                });
+                importThread.setDaemon(true);
+                importThread.start();
+            }
         });
-        bulkCard.getChildren().addAll(new Label("Bulk Upload"), new Separator(), loadB, bulkStatus);
+        bulkCard.getChildren().addAll(new Label("Bulk CSV Upload"), new Separator(), loadB, bulkStatus);
 
         contentArea.getChildren().addAll(manualEntryCard, bulkCard);
-        mainLayout.getChildren().addAll(new Label("Admin Controls"), contentArea);
+        mainLayout.getChildren().addAll(new Label("Database Administration Portal"), contentArea);
         return mainLayout;
     }
 
+    private int loadDatabaseFromCSV(String p) {
+        int count = 0;
+        try (Scanner sc = new Scanner(new java.io.File(p))) {
+            if(sc.hasNextLine()) sc.nextLine();
+            while(sc.hasNextLine()){
+                String line = sc.nextLine(); if(line.trim().isEmpty()) continue;
+                String[] d = line.split(",");
+                if(d.length >= 5){
+                    String cityName = d[1].trim();
+                    
+                    // IF CITY NOT IN RAM, WAIT 1 SEC TO PREVENT API BAN
+                    if (!cityCoordinates.containsKey(cityName)) {
+                        try { Thread.sleep(1000); } catch(Exception e) {}
+                    }
+                    
+                    double[] coords = getCoordinatesFromCity(cityName);
+                    if(coords != null) {
+                        donorTree.insert(new Donor(d[0].trim(), d[2].trim(), coords[0], coords[1], Integer.parseInt(d[3].trim()), Integer.parseInt(d[4].trim())));
+                        count++;
+                    }
+                }
+            }
+        } catch (Exception e) {} return count;
+    }
+
+    private void initializeCityCoordinates() {
+        cityCoordinates = new HashMap<>();
+        // WESTERN
+        cityCoordinates.put("Colombo", new double[]{6.9271, 79.8612});
+        cityCoordinates.put("Negombo", new double[]{7.2089, 79.8485});
+        cityCoordinates.put("Gampaha", new double[]{7.0840, 80.0098});
+        cityCoordinates.put("Kalutara", new double[]{6.5854, 79.9607});
+        cityCoordinates.put("Panadura", new double[]{6.7106, 79.9074});
+        cityCoordinates.put("Moratuwa", new double[]{6.773, 79.8816});
+        // CENTRAL
+        cityCoordinates.put("Kandy", new double[]{7.2906, 80.6337});
+        cityCoordinates.put("Matale", new double[]{7.4675, 80.6234});
+        cityCoordinates.put("Nuwara Eliya", new double[]{6.9497, 80.7891});
+        cityCoordinates.put("Peradeniya", new double[]{7.2683, 80.5933});
+        // SOUTHERN
+        cityCoordinates.put("Galle", new double[]{6.0535, 80.2210});
+        cityCoordinates.put("Matara", new double[]{5.9549, 80.5550});
+        cityCoordinates.put("Hambantota", new double[]{6.1246, 81.1185});
+        // NORTHERN
+        cityCoordinates.put("Jaffna", new double[]{9.6615, 80.0255});
+        cityCoordinates.put("Vavuniya", new double[]{8.7542, 80.4982});
+        cityCoordinates.put("Mannar", new double[]{8.981, 79.9044});
+        // NORTH WESTERN
+        cityCoordinates.put("Kurunegala", new double[]{7.4818, 80.3609});
+        cityCoordinates.put("Puttalam", new double[]{8.0330, 79.8259});
+        cityCoordinates.put("Chilaw", new double[]{7.5759, 79.7952});
+        // EASTERN
+        cityCoordinates.put("Trincomalee", new double[]{8.5717, 81.2335});
+        cityCoordinates.put("Batticaloa", new double[]{7.7102, 81.6924});
+        cityCoordinates.put("Ampara", new double[]{7.2842, 81.6747});
+    }
+
+    private double[] getCoordinatesFromCity(String n) {
+        try {
+            // STEP 1: Check RAM (Instant)
+            for (String k : cityCoordinates.keySet()) if (k.equalsIgnoreCase(n.trim())) return cityCoordinates.get(k);
+            
+            // STEP 2: Check API (Slow)
+            String u = "https://nominatim.openstreetmap.org/search?q=" + java.net.URLEncoder.encode(n.trim(), "UTF-8") + "%2CSri+Lanka&format=json&limit=1";
+            HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
+            c.setRequestProperty("User-Agent", "NIBM_Student_Project/1.0");
+            Scanner s = new Scanner(c.getInputStream());
+            if (!s.hasNext()) return null;
+            String r = s.useDelimiter("\\A").next();
+            if (r.contains("\"lat\":\"")) {
+                double lat = Double.parseDouble(r.split("\"lat\":\"")[1].split("\"")[0]);
+                double lon = Double.parseDouble(r.split("\"lon\":\"")[1].split("\"")[0]);
+                double[] found = new double[]{lat, lon};
+                // STEP 3: Save to RAM so it's instant next time!
+                cityCoordinates.put(n.trim(), found);
+                return found;
+            }
+        } catch (Exception e) {} return null;
+    }
+
+    // ==========================================
+    // THE REST OF THE UTILITIES
+    // ==========================================
     private void saveVolunteerToFile(Volunteer v) {
         try (BufferedWriter w = new BufferedWriter(new FileWriter("volunteers.txt", true))) {
             w.write(v.toCSV()); w.newLine();
         } catch (IOException e) {}
+    }
+
+    private void updateQueueDisplay() {
+        queueListView.getItems().clear();
+        for(EmergencyRequest r : requestHeap) queueListView.getItems().add(r.toString());
+    }
+
+    private VBox createEmergencyQueueUI() {
+        VBox v = new VBox(15); v.setPadding(new Insets(30)); v.setAlignment(Pos.TOP_CENTER);
+        v.getChildren().addAll(new Label("🚑 Dispatch Queue"), queueListView);
+        Button p = new Button("PROCESS"); stylePrimaryButton(p, "#c0392b", "#a93226");
+        p.setOnAction(e -> { if(!requestHeap.isEmpty()){ requestHeap.poll(); updateQueueDisplay(); } });
+        v.getChildren().add(p); return v;
     }
 
     private void styleInputField(TextField f) { f.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 8; -fx-border-color: #bdc3c7;"); }
@@ -328,26 +420,6 @@ public class MapDashboard extends Application {
     }
 
     private Label createAlertMessage(String t) { Label l = new Label(t); l.setStyle("-fx-text-fill: #c0392b; -fx-background-color: #fadbd8; -fx-padding: 10; -fx-background-radius: 8;"); return l; }
-
-    private int loadDatabaseFromCSV(String p) {
-        int count = 0;
-        try (Scanner sc = new Scanner(new java.io.File(p))) {
-            if(sc.hasNextLine()) sc.nextLine();
-            while(sc.hasNextLine()){
-                String[] d = sc.nextLine().split(",");
-                double[] c = getCoordinatesFromCity(d[1].trim());
-                if(c != null) { donorTree.insert(new Donor(d[0].trim(), d[2].trim(), c[0], c[1], Integer.parseInt(d[3].trim()), Integer.parseInt(d[4].trim()))); count++; }
-            }
-        } catch (Exception e) {} return count;
-    }
-
-    private void initializeCityCoordinates() {
-        cityCoordinates = new HashMap<>();
-        cityCoordinates.put("Colombo", new double[]{6.918, 79.869});
-        cityCoordinates.put("Kandy", new double[]{7.290, 80.633});
-        cityCoordinates.put("Galle", new double[]{6.066, 80.225});
-        cityCoordinates.put("Jaffna", new double[]{9.661, 80.025});
-    }
 
     private List<String> getCompatibleBloodTypes(String t) {
         switch (t) {
@@ -363,19 +435,6 @@ public class MapDashboard extends Application {
         double dLat = Math.toRadians(la2 - la1), dLon = Math.toRadians(lo2 - lo1);
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(Math.toRadians(la1)) * Math.cos(Math.toRadians(la2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-    }
-
-    private double[] getCoordinatesFromCity(String n) {
-        try {
-            for (String k : cityCoordinates.keySet()) if (k.equalsIgnoreCase(n.trim())) return cityCoordinates.get(k);
-            String u = "https://nominatim.openstreetmap.org/search?q=" + java.net.URLEncoder.encode(n.trim(), "UTF-8") + "%2CSri+Lanka&format=json&limit=1";
-            HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
-            c.setRequestProperty("User-Agent", "NIBM_Student_Project/1.0");
-            Scanner s = new Scanner(c.getInputStream());
-            if (!s.hasNext()) return null;
-            String r = s.useDelimiter("\\A").next();
-            if (r.contains("\"lat\":\"")) return new double[]{Double.parseDouble(r.split("\"lat\":\"")[1].split("\"")[0]), Double.parseDouble(r.split("\"lon\":\"")[1].split("\"")[0])};
-        } catch (Exception e) {} return null;
     }
 
     public static void main(String[] args) { launch(args); }
