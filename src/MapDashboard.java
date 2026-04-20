@@ -215,7 +215,7 @@ public class MapDashboard extends Application {
         formGrid.add(new Label("Supply:"), 0, 3); formGrid.add(sF, 1, 3);
         formGrid.add(new Label("Demand:"), 0, 4); formGrid.add(dF, 1, 4);
 
-        Button addB = new Button("Add Hospital"); stylePrimaryButton(addB, "#2980b9", "#1c5982"); addB.setMaxWidth(Double.MAX_VALUE);
+        Button addB = new Button("Add Data"); stylePrimaryButton(addB, "#2980b9", "#1c5982"); addB.setMaxWidth(Double.MAX_VALUE);
         Label status = new Label();
         addB.setOnAction(e -> {
             try {
@@ -230,7 +230,7 @@ public class MapDashboard extends Application {
         bulkCard.setStyle("-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15;");
         bulkCard.setEffect(cardShadow);
 
-        Button loadB = new Button("Upload CSV (150+ Records)"); stylePrimaryButton(loadB, "#f39c12", "#d35400");
+        Button loadB = new Button("Upload CSV"); stylePrimaryButton(loadB, "#f39c12", "#d35400");
         Label bulkStatus = new Label("No file loaded.");
         loadB.setOnAction(e -> {
             java.io.File f = new FileChooser().showOpenDialog(stage);
