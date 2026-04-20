@@ -1,0 +1,2 @@
+ishini amanda,AB+,6.9388614,79.8542005,23,55.0,12.5,false,false
+ishini amnda,AB+,6.9388614,79.8542005,23,53.0,13.0,false,false
