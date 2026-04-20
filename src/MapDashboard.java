@@ -46,7 +46,7 @@ public class MapDashboard extends Application {
         cityField.setPromptText("Enter Patient City (e.g. Jaffna)");
         cityField.setStyle("-fx-font-size: 14px; -fx-padding: 10px;");
         
-        Button searchButton = new Button("SEARCH COMPATIBLE DONORS");
+        Button searchButton = new Button("SEARCH SHORTEST ROUTE");
         searchButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10px 20px; -fx-cursor: hand;");
 
         VBox resultsBox = new VBox(15);
