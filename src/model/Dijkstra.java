@@ -5,75 +5,54 @@ import java.util.*;
 public class Dijkstra {
 
     public static class Result {
-        public Map<String, Integer> distances;
-        public Map<String, String> previous;
-
-        public Result(Map<String, Integer> d, Map<String, String> p) {
-            this.distances = d;
-            this.previous = p;
-        }
+        public Map<String, Integer> distances = new HashMap<>();
+        public Map<String, String> previous = new HashMap<>();
     }
 
     public static Result findShortestPaths(Graph g, String start) {
 
-        Map<String, Integer> dist = new HashMap<>();
-        Map<String, String> prev = new HashMap<>();
+        Result r = new Result();
 
-        PriorityQueue<String> pq =
-                new PriorityQueue<>(Comparator.comparingInt(dist::get));
+        PriorityQueue<String> pq = new PriorityQueue<>(Comparator.comparingInt(r.distances::get));
 
-        Set<String> visited = new HashSet<>();
-
-        for (String node : g.getAdj().keySet()) {
-            dist.put(node, Integer.MAX_VALUE);
-            prev.put(node, null);
+        for (String node : g.adj.keySet()) {
+            r.distances.put(node, Integer.MAX_VALUE);
         }
 
-        if (!dist.containsKey(start)) {
-            System.out.println("Start node not found in graph!");
-            return new Result(dist, prev);
-        }
-
-        dist.put(start, 0);
+        r.distances.put(start, 0);
         pq.add(start);
 
         while (!pq.isEmpty()) {
 
-            String current = pq.poll();
+            String u = pq.poll();
 
-            if (visited.contains(current)) continue;
-            visited.add(current);
+            for (Graph.Edge e : g.adj.get(u)) {
 
-            List<Graph.Edge> neighbors =
-                    g.getAdj().getOrDefault(current, new ArrayList<>());
+                int newDist = r.distances.get(u) + e.weight;
 
-            for (Graph.Edge edge : neighbors) {
+                if (newDist < r.distances.get(e.to)) {
 
-                String next = edge.node;
-                int newDist = dist.get(current) + edge.weight;
+                    r.distances.put(e.to, newDist);
+                    r.previous.put(e.to, u);
 
-                if (newDist < dist.get(next)) {
-                    dist.put(next, newDist);
-                    prev.put(next, current);
-                    pq.add(next);
+                    pq.add(e.to);
                 }
             }
         }
 
-        return new Result(dist, prev);
+        return r;
     }
 
     public static List<String> getPath(Map<String, String> prev, String target) {
 
-        List<String> path = new ArrayList<>();
+        LinkedList<String> path = new LinkedList<>();
+        String current = target;
 
-        if (!prev.containsKey(target)) return path;
-
-        for (String at = target; at != null; at = prev.get(at)) {
-            path.add(at);
+        while (current != null) {
+            path.addFirst(current);
+            current = prev.get(current);
         }
 
-        Collections.reverse(path);
         return path;
     }
 }

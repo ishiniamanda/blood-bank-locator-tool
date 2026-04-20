@@ -4,27 +4,24 @@ import java.util.*;
 
 public class Graph {
 
-    public static class Edge {
-        public String node;
-        public int weight;
+    public Map<String, List<Edge>> adj = new HashMap<>();
 
-        public Edge(String node, int weight) {
-            this.node = node;
-            this.weight = weight;
+    class Edge {
+        String to;
+        int weight;
+
+        Edge(String t, int w) {
+            to = t;
+            weight = w;
         }
     }
 
-    private Map<String, List<Edge>> adj = new HashMap<>();
+    public void addEdge(String from, String to, int w) {
 
-    public void addEdge(String from, String to, int weight) {
         adj.putIfAbsent(from, new ArrayList<>());
         adj.putIfAbsent(to, new ArrayList<>());
 
-        adj.get(from).add(new Edge(to, weight));
-        adj.get(to).add(new Edge(from, weight)); // undirected
-    }
-
-    public Map<String, List<Edge>> getAdj() {
-        return adj;
+        adj.get(from).add(new Edge(to, w));
+        adj.get(to).add(new Edge(from, w));
     }
 }

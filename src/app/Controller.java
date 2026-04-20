@@ -1,26 +1,57 @@
 package app;
 
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import javafx.stage.Stage;
 import model.*;
-
 
 import java.util.*;
 
 public class Controller {
 
+    // ================= MAP UI =================
     @FXML private TextField startField;
     @FXML private TextField bloodField;
     @FXML private TextArea outputArea;
     @FXML private WebView mapView;
-    
 
+    private WebEngine engine;
+
+    // ================= DATA STRUCTURES =================
     private Graph g = new Graph();
+    private BloodFilter bloodFilter = new BloodFilter();
+    private RedBlackTree donorTree = new RedBlackTree();
+    private PriorityQueueManager pq = new PriorityQueueManager();
+
     private Map<String, double[]> locations = new HashMap<>();
 
+    // ================= OPEN DONOR VIEW =================
+    @FXML
+    public void openDonorView() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/donor-view.fxml"));
+            Parent root = loader.load();
+
+            Stage stage = new Stage();
+            stage.setTitle("Donor Panel");
+            stage.setScene(new Scene(root, 700, 500));
+            stage.show();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ================= INIT =================
     @FXML
     public void initialize() {
+
+        engine = mapView.getEngine();
 
         // GRAPH
         g.addEdge("A","B",4);
@@ -28,15 +59,32 @@ public class Controller {
         g.addEdge("A","C",6);
         g.addEdge("C","E",4);
 
-        // REALISTIC COORDINATES (Sri Lanka)
-        locations.put("A", new double[]{7.2906, 80.6337}); // Kandy
-        locations.put("B", new double[]{6.9271, 79.8612}); // Colombo
-        locations.put("C", new double[]{6.0535, 80.2210}); // Galle
-        locations.put("E", new double[]{7.8731, 80.7718}); // Dambulla
+        // LOCATIONS
+        locations.put("A", new double[]{7.29,80.63});
+        locations.put("B", new double[]{6.92,79.86});
+        locations.put("C", new double[]{6.05,80.22});
+        locations.put("E", new double[]{7.87,80.77});
+
+        // BLOOD DATA
+        bloodFilter.addHospital("A","A+");
+        bloodFilter.addHospital("B","B+");
+        bloodFilter.addHospital("C","A+");
+        bloodFilter.addHospital("E","O+");
+
+        // RED BLACK TREE
+        donorTree.insert("A+","Donor A");
+        donorTree.insert("B+","Donor B");
+        donorTree.insert("O+","Donor C");
+
+        // PRIORITY QUEUE
+        pq.addDonor(new Donor("Kasun", "A+", 1));
+        pq.addDonor(new Donor("Nimal", "O+", 3));
+        pq.addDonor(new Donor("Saman", "B+", 2));
 
         loadMap(null);
     }
 
+    // ================= SEARCH =================
     @FXML
     public void handleSearch() {
 
@@ -45,8 +93,7 @@ public class Controller {
 
         Dijkstra.Result res = Dijkstra.findShortestPaths(g, start);
 
-        BloodFilter bf = new BloodFilter();
-        List<String> hospitals = bf.getHospitalsWithBlood(blood);
+        List<String> hospitals = bloodFilter.getHospitalsWithBlood(blood);
 
         String nearest = null;
         int min = Integer.MAX_VALUE;
@@ -63,69 +110,73 @@ public class Controller {
 
             List<String> path = Dijkstra.getPath(res.previous, nearest);
 
+            Donor nextDonor = pq.getNextDonor();
+            String donor = (nextDonor != null)
+                    ? nextDonor.getName()
+                    : "No donor available";
+
             outputArea.setText(
-                    "Nearest Hospital: " + nearest +
-                    "\nDistance: " + min +
-                    "\nPath: " + String.join(" → ", path)
+                "Hospital: " + nearest +
+                "\nDistance: " + min +
+                "\nPath: " + String.join(" → ", path) +
+                "\nNext Donor: " + donor
             );
 
             loadMap(path);
-
-        } else {
-            outputArea.setText("No matching blood found.");
         }
     }
 
-    // ================= REAL OPENSTREETMAP =================
+    // ================= MAP =================
     private void loadMap(List<String> path) {
 
         StringBuilder markers = new StringBuilder();
 
-        for (String key : locations.keySet()) {
-            double[] c = locations.get(key);
+        for (String k : locations.keySet()) {
+            double[] c = locations.get(k);
 
             markers.append(
-                "L.marker([" + c[0] + "," + c[1] + "])"
-              + ".addTo(map).bindPopup('" + key + "');"
+                "L.marker(["+c[0]+","+c[1]+"]).addTo(map).bindPopup('"+k+"');"
             );
         }
 
-        String polyline = "";
+        String poly = "";
 
         if (path != null && path.size() > 1) {
-            StringBuilder line = new StringBuilder("[");
-            for (String p : path) {
-                double[] c = locations.get(p);
-                line.append("[").append(c[0]).append(",").append(c[1]).append("],");
+
+            StringBuilder p = new StringBuilder("[");
+
+            for (String n : path) {
+                double[] c = locations.get(n);
+                p.append("[").append(c[0]).append(",").append(c[1]).append("],");
             }
-            line.append("]");
-            polyline =
-                "L.polyline(" + line + ", {color:'red', weight:5}).addTo(map);";
+
+            p.append("]");
+
+            poly = "L.polyline(" + p + ", {color:'red', weight:4}).addTo(map);";
         }
 
         String html =
-            "<html>" +
-            "<head>" +
-            "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>" +
-            "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>" +
-            "</head>" +
-            "<body style='margin:0'>" +
+            "<html><head>" +
+            "<link rel='stylesheet' href='https://unpkg.com/leaflet/dist/leaflet.css'/>" +
+            "<script src='https://unpkg.com/leaflet/dist/leaflet.js'></script>" +
+            "</head><body style='margin:0'>" +
+
             "<div id='map' style='width:100%; height:100vh;'></div>" +
+
             "<script>" +
 
-            "var map = L.map('map').setView([7.0,80.7], 7);" +
+            "var map = L.map('map').setView([7,80],7);" +
 
-            // REAL OPENSTREETMAP TILES
             "L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {" +
-            "attribution: '© OpenStreetMap contributors'" +
-            "}).addTo(map);" +
+            "attribution:'© OpenStreetMap'}).addTo(map);" +
 
             markers.toString() +
-            polyline +
+            poly +
 
-            "</script>" +
-            "</body></html>";
+            "setTimeout(function(){ map.invalidateSize(); }, 300);" +
 
-        mapView.getEngine().loadContent(html);
+            "</script></body></html>";
+
+        engine.loadContent(html);
     }
 }
