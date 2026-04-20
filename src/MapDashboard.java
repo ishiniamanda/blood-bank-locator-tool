@@ -17,8 +17,12 @@ import java.util.Scanner;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.PriorityQueue;
+
 public class MapDashboard extends Application {
 
+    private PriorityQueue<EmergencyRequest> requestHeap = new PriorityQueue<>();
+    private ListView<String> queueListView = new ListView<>(); // To show the queue in UI
     private RedBlackTree donorTree;
 
     @Override
@@ -81,6 +85,18 @@ public class MapDashboard extends Application {
 
             String patientType = bloodField.getText().toUpperCase().trim();
             String city = cityField.getText().trim();
+            // 1. Create a priority (1 = Normal, 2 = Urgent, 3 = Critical)
+    // For now, let's make every search "Urgent" (Level 2)
+    EmergencyRequest newReq = new EmergencyRequest("Patient in " + city, patientType, 2);
+
+    // 2. Add to the Heap (Priority Queue)
+    requestHeap.add(newReq);
+
+    // 3. Refresh the List on the screen so you can see it
+    queueListView.getItems().clear();
+    for (EmergencyRequest req : requestHeap) {
+        queueListView.getItems().add(req.toString());
+    }
 
             List<String> compatibleTypes = getCompatibleBloodTypes(patientType);
 
@@ -180,25 +196,34 @@ public class MapDashboard extends Application {
             }
         });
 
-       // ✅ REPLACE THEM WITH THIS:
-VBox leftSide = new VBox(20); // This is your original search UI
-leftSide.setAlignment(Pos.TOP_CENTER);
-leftSide.setPadding(new Insets(20));
-leftSide.getChildren().addAll(titleLabel, bloodField, cityField, searchButton, donorButton, resultsBox);
+      // --- 1. THE LEFT SIDE (Search Form) ---
+        VBox leftSide = new VBox(20);
+        leftSide.setAlignment(Pos.TOP_CENTER);
+        leftSide.setPadding(new Insets(20));
+        // We put all your original UI elements here
+        leftSide.getChildren().addAll(titleLabel, bloodField, cityField, searchButton, donorButton, resultsBox);
+        leftSide.setMinWidth(450);
 
-VBox rightSide = createVisualHeatMap(); // This is the new Heat Map from Step 1
+        // --- 2. THE RIGHT SIDE (Priority Queue / Heap) ---
+        VBox rightSide = new VBox(20);
+        rightSide.setAlignment(Pos.TOP_CENTER);
+        rightSide.setPadding(new Insets(20));
+        // This adds the Heap UI we created earlier
+        rightSide.getChildren().add(createPriorityQueueUI()); 
+        rightSide.setMinWidth(350);
 
-// This HBox puts them side-by-side
-HBox sideBySideLayout = new HBox(30); 
-sideBySideLayout.setPadding(new Insets(20));
-sideBySideLayout.setAlignment(Pos.CENTER);
-sideBySideLayout.getChildren().addAll(leftSide, rightSide);
+        // --- 3. THE MAIN BOX (Horizontal Layout) ---
+        HBox sideBySideLayout = new HBox(30); 
+        sideBySideLayout.setPadding(new Insets(20));
+        sideBySideLayout.setAlignment(Pos.CENTER);
+        // This "snaps" the left side and right side together
+        sideBySideLayout.getChildren().addAll(leftSide, rightSide);
 
-// Now we show the sideBySideLayout instead of just the mainLayout
-Scene scene = new Scene(sideBySideLayout, 1000, 700); 
-stage.setTitle("Emergency Blood Bank Locator Tracker");
-stage.setScene(scene);
-stage.show();
+        // --- 4. SHOW THE WINDOW ---
+        Scene scene = new Scene(sideBySideLayout, 1000, 750); // Made it wider for the two columns
+        stage.setTitle("Emergency Blood Bank - Priority Tracking");
+        stage.setScene(scene);
+        stage.show();
     }
 
     private List<String> getCompatibleBloodTypes(String patientType) {
@@ -260,16 +285,7 @@ stage.show();
         }
     }
 
-    // This is the method the DonorForm was looking for!
-public void saveDonorToFile(Donor donor) {
-    try (BufferedWriter writer = new BufferedWriter(new FileWriter("donor.txt", true))) {
-        // This takes the donor data and writes it as a new line in donor.txt
-        writer.write(donor.toString());
-        writer.newLine(); 
-    } catch (IOException e) {
-        System.out.println("Could not save donor to file: " + e.getMessage());
-    }
-}
+    
     public static void main(String[] args) {
         launch(args);
     }
@@ -283,53 +299,94 @@ public void saveDonorToFile(Donor donor) {
             this.distance = distance;
         }
     }
-    // Method to create the Visual Heat Map Grid
-private VBox createVisualHeatMap() {
-    VBox container = new VBox(15);
-    container.setPadding(new Insets(20));
-    container.setAlignment(Pos.TOP_CENTER);
-    container.setStyle("-fx-background-color: #f8f9fa; -fx-border-color: #dcdde1; -fx-border-radius: 10; -fx-background-radius: 10;");
+    private VBox createPriorityQueueUI() {
+    VBox container = new VBox(12);
+    container.setPadding(new Insets(15));
+    container.setPrefWidth(350);
+    container.setStyle("-fx-background-color: #ffffff; -fx-border-color: #d1d8e0; " +
+                       "-fx-border-radius: 10; -fx-background-radius: 10; " +
+                       "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 4);");
 
-    Label header = new Label("LIVE SUPPLY HEAT MAP");
-    header.setFont(Font.font("Arial", FontWeight.BOLD, 16));
-    header.setStyle("-fx-text-fill: #34495e;");
+    // Title with Icon
+    Label header = new Label("🚑 PRIORITY EMERGENCY QUEUE");
+    header.setStyle("-fx-font-weight: bold; -fx-font-size: 15px; -fx-text-fill: #c0392b;");
 
-    GridPane grid = new GridPane();
-    grid.setHgap(10);
-    grid.setVgap(10);
-    grid.setAlignment(Pos.CENTER);
+    // Status Label to show Heap size
+    Label statusLabel = new Label("Pending Requests: 0");
+    statusLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 11px;");
 
-    String[] types = {"A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"};
-    
-    for (int i = 0; i < types.length; i++) {
-        String type = types[i];
-        ArrayList<Donor> list = donorTree.search(type);
-        int count = (list == null) ? 0 : list.size();
-
-        // Tile Styling
-        VBox tile = new VBox(5);
-        tile.setPrefSize(90, 70);
-        tile.setAlignment(Pos.CENTER);
+    // The ListView with a CellFactory for colors
+    queueListView.setPrefHeight(300);
+    queueListView.setCellFactory(lv -> new ListCell<String>() {
+        @Override
+        protected void updateItem(String item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty || item == null) {
+                setText(null);
+                setStyle("");
+            } else {
+                setText(item);
+                if (item.contains("CRITICAL")) {
+                    setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-background-color: #fff5f5;");
+                } else if (item.contains("URGENT")) {
+                    setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
+                } else {
+                    setStyle("-fx-text-fill: #2c3e50;");
+                }
+            }
+        }
         
-        // Color Logic: Red for empty, Yellow for low, Green for good supply
-        String color;
-        if (count == 0) color = "#ff7675";      // Red
-        else if (count < 3) color = "#ffeaa7"; // Yellow
-        else color = "#55efc4";                // Green
-
-        tile.setStyle("-fx-background-color: " + color + "; -fx-background-radius: 8; -fx-border-color: #636e72; -fx-border-radius: 8;");
-        
-        Label typeLabel = new Label(type);
-        typeLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-        
-        Label countLabel = new Label("Qty: " + count);
-        countLabel.setStyle("-fx-font-size: 12px;");
-        
-        tile.getChildren().addAll(typeLabel, countLabel);
-        grid.add(tile, i % 2, i / 2); // Arrange in 2 columns
+    });
+    // This part tells the list how to "paint" the rows
+queueListView.setCellFactory(lv -> new ListCell<String>() {
+    @Override
+    protected void updateItem(String item, boolean empty) {
+        super.updateItem(item, empty);
+        if (empty || item == null) {
+            setText(null);
+            setStyle(""); // Clear style for empty rows
+        } else {
+            setText(item);
+            // If the text contains "CRITICAL", make it RED
+            if (item.contains("CRITICAL")) {
+                setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-background-color: #fff5f5;");
+            } 
+            // If it contains "URGENT", make it ORANGE
+            else if (item.contains("URGENT")) {
+                setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
+            } 
+            // Normal ones are dark blue/gray
+            else {
+                setStyle("-fx-text-fill: #2c3e50;");
+            }
+        }
     }
+});
 
-    container.getChildren().addAll(header, grid);
+    // The Process Button (The Heap 'Poll' Action)
+    Button processBtn = new Button("PROCESS NEXT EMERGENCY");
+    processBtn.setMaxWidth(Double.MAX_VALUE);
+    processBtn.setPadding(new Insets(10));
+    processBtn.setStyle("-fx-background-color: #c0392b; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
+
+    processBtn.setOnAction(e -> {
+        if (!requestHeap.isEmpty()) {
+            requestHeap.poll(); // Binary Heap Extract-Max Operation
+            updateQueueDisplay(statusLabel);
+        }
+    });
+
+    container.getChildren().addAll(header, statusLabel, queueListView, processBtn);
     return container;
 }
+
+// Helper method to refresh the UI
+private void updateQueueDisplay(Label status) {
+    queueListView.getItems().clear();
+    for (EmergencyRequest req : requestHeap) {
+        queueListView.getItems().add(req.toString());
+    }
+    status.setText("Pending Requests: " + requestHeap.size());
+}
+
 }
