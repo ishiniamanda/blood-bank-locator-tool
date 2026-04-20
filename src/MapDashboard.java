@@ -11,6 +11,7 @@ import javafx.stage.Stage;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -24,16 +25,8 @@ public class MapDashboard extends Application {
     public void start(Stage stage) {
 
         donorTree = new RedBlackTree();
-        graph = new Graph();
-
-        // ================= GRAPH =================
-        graph.addEdge("Colombo", "Negombo", 40);
-        graph.addEdge("Colombo", "Galle", 120);
-        graph.addEdge("Negombo", "Kandy", 100);
-        graph.addEdge("Kandy", "Jaffna", 250);
-        graph.addEdge("Galle", "Matara", 30);
-
-        // ================= DONORS =================
+        
+        // Database with multiple "O-" and "A+" donors to test the list!
         donorTree.insert(new Donor("National Blood Center (Colombo)", "A+", 6.9054, 79.8731));
         donorTree.insert(new Donor("Negombo General Hospital", "O-", 7.2091, 79.8485));
         donorTree.insert(new Donor("Kandy Teaching Hospital", "O+", 7.2906, 80.6337));
@@ -51,28 +44,15 @@ public class MapDashboard extends Application {
         titleLabel.setStyle("-fx-text-fill: #1f2d3d;");
 
         TextField bloodField = new TextField();
-        bloodField.setPromptText("Enter Blood Type (e.g. O+)");
+        bloodField.setPromptText("Enter Patient Blood Type (e.g. A+)");
         bloodField.setStyle("-fx-font-size: 14px; -fx-padding: 10px;");
 
         TextField cityField = new TextField();
-        cityField.setPromptText("Enter Your City (e.g. Jaffna)");
+        cityField.setPromptText("Enter Patient City (e.g. Jaffna)");
         cityField.setStyle("-fx-font-size: 14px; -fx-padding: 10px;");
-
+        
         Button searchButton = new Button("SEARCH DONORS");
-        searchButton.setStyle(
-                "-fx-background-color: #e74c3c;" +
-                "-fx-text-fill: white;" +
-                "-fx-font-weight: bold;" +
-                "-fx-padding: 10 20;"
-        );
-
-        Button routeButton = new Button("FIND SHORTEST ROUTE");
-        routeButton.setStyle(
-                "-fx-background-color: #2ecc71;" +
-                "-fx-text-fill: white;" +
-                "-fx-font-weight: bold;" +
-                "-fx-padding: 10 20;"
-        );
+        searchButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10px 20px; -fx-cursor: hand;");
 
         VBox resultsBox = new VBox(15);
         resultsBox.setAlignment(Pos.TOP_CENTER);
@@ -85,45 +65,40 @@ public class MapDashboard extends Application {
 
         // ================= SEARCH BUTTON =================
         searchButton.setOnAction(e -> {
-
-            resultsBox.getChildren().clear();
-
+            resultsBox.getChildren().clear(); 
             String type = bloodField.getText().toUpperCase().trim();
             String city = cityField.getText().trim();
-
-            ArrayList<Donor> rawList = donorTree.search(type);
-            ArrayList<Donor> matchingDonors = new ArrayList<>();
-
-            for (Donor d : rawList) {
-                if (BloodFilter.isCompatible(type, d.bloodType)) {
-                    matchingDonors.add(d);
-                }
-            }
+            
+            // 1. Get the raw list of matching donors from the Tree
+            ArrayList<Donor> matchingDonors = donorTree.search(type);
 
             if (!matchingDonors.isEmpty() && !city.isEmpty()) {
-
+                Label loadingLabel = new Label("Locating " + city + "...");
+                resultsBox.getChildren().add(loadingLabel);
+                
                 double[] cityCoords = getCoordinatesFromCity(city);
                 resultsBox.getChildren().clear();
 
                 if (cityCoords != null) {
-
+                    
+                    // 2. Calculate distance for EVERY donor and store them in a temporary list
                     List<DonorResult> sortedResults = new ArrayList<>();
-
                     for (Donor d : matchingDonors) {
                         double distance = calculateDistance(cityCoords[0], cityCoords[1], d.lat, d.lon);
                         sortedResults.add(new DonorResult(d, distance));
                     }
 
+                    // 3. Sort the list from shortest distance to longest distance
                     sortedResults.sort((a, b) -> Double.compare(a.distance, b.distance));
 
-                    Label summaryLabel = new Label(
-                            "Found " + sortedResults.size() + " donor(s) near " + city
-                    );
+                    // 4. Update the UI
+                    Label summaryLabel = new Label("Found " + sortedResults.size() + " donor(s) near " + city + ":");
                     summaryLabel.setFont(Font.font("Arial", FontWeight.BOLD, 16));
                     resultsBox.getChildren().add(summaryLabel);
 
                     VBox hospitalCards = new VBox(10);
-
+                    
+                    // Loop through the sorted results and create a UI card for each one!
                     for (DonorResult result : sortedResults) {
 
                         HBox card = new HBox(15);
@@ -131,12 +106,13 @@ public class MapDashboard extends Application {
                         card.setAlignment(Pos.CENTER_LEFT);
 
                         VBox textInfo = new VBox(5);
-
                         Label nameLabel = new Label(result.donor.name);
                         nameLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-
-                        Label distLabel = new Label("Distance: " + String.format("%.2f", result.distance) + " km");
-
+                        nameLabel.setStyle("-fx-text-fill: #27ae60;");
+                        
+                        Label distLabel = new Label(String.format("Approx. Distance: %.1f km", result.distance));
+                        distLabel.setFont(Font.font("Arial", 12));
+                        
                         textInfo.getChildren().addAll(nameLabel, distLabel);
 
                         Region spacer = new Region();
@@ -162,62 +138,7 @@ public class MapDashboard extends Application {
                 }
 
             } else {
-                resultsBox.getChildren().add(new Label("No donor found."));
-            }
-        });
-
-        // ================= DIJKSTRA BUTTON (FIXED ONLY) =================
-        routeButton.setOnAction(e -> {
-
-            resultsBox.getChildren().clear();
-
-            String start = cityField.getText().trim();
-
-            // ✅ FIX: case-insensitive graph matching
-            String matchedNode = null;
-
-            for (String node : graph.getGraph().keySet()) {
-                if (node.equalsIgnoreCase(start)) {
-                    matchedNode = node;
-                    break;
-                }
-            }
-
-            if (matchedNode == null) {
-                resultsBox.getChildren().add(new Label(
-                        "Invalid start location!\nValid: Colombo, Negombo, Galle, Kandy, Jaffna, Matara"
-                ));
-                return;
-            }
-
-            Map<String, Integer> result =
-                    Dijkstra.findShortestPaths(graph, matchedNode);
-
-            int minDistance = Integer.MAX_VALUE;
-
-            for (int value : result.values()) {
-                if (value < minDistance) {
-                    minDistance = value;
-                }
-            }
-
-            Label title = new Label("Shortest Routes from " + matchedNode);
-            title.setFont(Font.font("Arial", FontWeight.BOLD, 16));
-            resultsBox.getChildren().add(title);
-
-            for (Map.Entry<String, Integer> entry : result.entrySet()) {
-
-                String distText = (entry.getValue() == Integer.MAX_VALUE)
-                        ? "No Path"
-                        : entry.getValue() + " km";
-
-                Label label = new Label(entry.getKey() + " → " + distText);
-
-                if (entry.getValue() == minDistance && minDistance != Integer.MAX_VALUE) {
-                    label.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                }
-
-                resultsBox.getChildren().add(label);
+                resultsBox.getChildren().add(new Label("No " + type + " donor found in the system."));
             }
         });
 
@@ -237,6 +158,22 @@ public class MapDashboard extends Application {
         stage.setScene(scene);
         stage.setTitle("Emergency Blood Bank Locator");
         stage.show();
+    }
+
+    // --- THE COMPATIBILITY BRAIN ---
+    // This medical logic defines who can receive what blood.
+    private List<String> getCompatibleBloodTypes(String patientType) {
+        switch (patientType) {
+            case "O-":  return Arrays.asList("O-"); // Universal Donor, but can only receive O-
+            case "O+":  return Arrays.asList("O+", "O-");
+            case "A-":  return Arrays.asList("A-", "O-");
+            case "A+":  return Arrays.asList("A+", "A-", "O+", "O-");
+            case "B-":  return Arrays.asList("B-", "O-");
+            case "B+":  return Arrays.asList("B+", "B-", "O+", "O-");
+            case "AB-": return Arrays.asList("AB-", "A-", "B-", "O-");
+            case "AB+": return Arrays.asList("AB+", "AB-", "A+", "A-", "B+", "B-", "O+", "O-"); // Universal Recipient
+            default:    return new ArrayList<>(); // Returns empty if they type something wrong
+        }
     }
 
     // ================= DISTANCE =================
