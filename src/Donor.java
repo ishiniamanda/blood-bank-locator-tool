@@ -1,24 +1,18 @@
 public class Donor {
+    String name;
+    String bloodType;
+    double lat;
+    double lon;
+    int supply;
+    int demand; 
 
-    private String name;
-    private String bloodType;
-    private double lat, lon;
-
-    private int age;
-    private double weight;
-    private double hemoglobin;
-    private boolean isPregnant;
-    
-    // ADD THIS LINE
-    public boolean isHospital; 
-
-    // Constructor for Hospitals
-    public Donor(String name, String bloodType, double lat, double lon) {
+    public Donor(String name, String bloodType, double lat, double lon, int supply, int demand) {
         this.name = name;
         this.bloodType = bloodType;
         this.lat = lat;
         this.lon = lon;
-        this.isHospital = true; // Hospitals are true
+        this.supply = supply;
+        this.demand = demand;
     }
 
     // Constructor for Individuals
