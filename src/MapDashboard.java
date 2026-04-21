@@ -30,6 +30,7 @@ public class MapDashboard extends Application {
     private HashMap<String, double[]> cityCoordinates; 
     private PriorityQueue<EmergencyRequest> requestHeap;
     private ListView<String> queueListView; 
+    private final String ADMIN_PASSWORD = "admin123";
 
     private final DropShadow cardShadow = new DropShadow(15, Color.rgb(0, 0, 0, 0.08));
 
@@ -42,7 +43,7 @@ public class MapDashboard extends Application {
         queueListView = new ListView<>();
         initializeCityCoordinates();
 
-        TabPane tabPane = new TabPane();
+        final TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         tabPane.setStyle("-fx-background-color: #f4f6f9; -fx-font-family: 'Segoe UI', Arial, sans-serif;");
 
@@ -53,7 +54,25 @@ public class MapDashboard extends Application {
         queueTab.setContent(createEmergencyQueueUI());
 
         Tab adminTab = new Tab("🔒 Admin Portal");
-        adminTab.setContent(createAdminPortal(stage));
+
+// temporary locked screen
+VBox lockedBox = new VBox();
+lockedBox.setAlignment(Pos.CENTER);
+lockedBox.getChildren().add(new Label("🔒 Admin Access Required"));
+adminTab.setContent(lockedBox);
+
+// when tab is selected → ask password
+adminTab.setOnSelectionChanged(event -> {
+    if (adminTab.isSelected()) {
+        boolean success = showAdminLoginDialog(stage);
+
+        if (success) {
+            adminTab.setContent(createAdminPortal(stage));
+        } else {
+            tabPane.getSelectionModel().select(0); // go back to first tab
+        }
+    }
+});
 
         tabPane.getTabs().addAll(patientTab, queueTab, adminTab);
 
@@ -421,6 +440,43 @@ public class MapDashboard extends Application {
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(Math.toRadians(la1)) * Math.cos(Math.toRadians(la2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
     }
+    private boolean showAdminLoginDialog(Stage owner) {
+    Dialog<String> dialog = new Dialog<>();
+    dialog.setTitle("Admin Login");
+    dialog.initOwner(owner);
+
+    PasswordField passwordField = new PasswordField();
+    passwordField.setPromptText("Enter Admin Password");
+
+    VBox content = new VBox(10);
+    content.setPadding(new Insets(20));
+    content.getChildren().addAll(new Label("Admin Password:"), passwordField);
+
+    dialog.getDialogPane().setContent(content);
+
+    ButtonType loginButton = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
+    dialog.getDialogPane().getButtonTypes().addAll(loginButton, ButtonType.CANCEL);
+
+    dialog.setResultConverter(button -> {
+        if (button == loginButton) {
+            return passwordField.getText();
+        }
+        return null;
+    });
+
+    Optional<String> result = dialog.showAndWait();
+
+    if (result.isPresent() && result.get().equals(ADMIN_PASSWORD)) {
+        return true;
+    } else {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Access Denied");
+        alert.setHeaderText(null);
+        alert.setContentText("❌ Incorrect Password!");
+        alert.showAndWait();
+        return false;
+    }
+}
 
     public static void main(String[] args) { launch(args); }
     private static class HospitalResult { Donor donor; double distance; public HospitalResult(Donor d, double dist) { this.donor = d; this.distance = dist; } }
