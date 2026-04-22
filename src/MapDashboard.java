@@ -83,7 +83,7 @@ public class MapDashboard extends Application {
         sidebar.setStyle("-fx-background-color: #1a252f; -fx-padding: 30 15 30 15;");
         sidebar.setAlignment(Pos.TOP_CENTER);
 
-        Label logo = new Label("🩸 EMERGENCY\nBLOOD LOCATOR");
+        Label logo = new Label(" EMERGENCY\nBLOOD LOCATOR");
         logo.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
         logo.setTextFill(Color.web("#e74c3c"));
         logo.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
@@ -92,8 +92,8 @@ public class MapDashboard extends Application {
         brandBox.setAlignment(Pos.CENTER);
         brandBox.setPadding(new Insets(0, 0, 40, 0));
 
-        Button btnPatient = createNavButton("🔍 Search & Route");
-        Button btnQueue = createNavButton("🚑 Dispatch Queue");
+        Button btnPatient = createNavButton(" Search & Route");
+        Button btnQueue = createNavButton(" Dispatch Queue");
         Button btnAdmin = createNavButton("🔒 Admin Portal");
 
         btnPatient.setOnAction(e -> switchView(patientView));
@@ -197,7 +197,7 @@ public class MapDashboard extends Application {
         HBox inputsBox = new HBox(15);
         inputsBox.setAlignment(Pos.CENTER);
         TextField bloodField = new TextField(); bloodField.setPromptText("Blood Type (e.g., A+)");
-        TextField cityField = new TextField(); cityField.setPromptText("Your City (e.g., Kandy)");
+        TextField cityField = new TextField(); cityField.setPromptText("Your City (e.g., Colombo)");
         bloodField.setPrefWidth(200); cityField.setPrefWidth(250);
         styleInputField(bloodField); styleInputField(cityField);
         inputsBox.getChildren().addAll(bloodField, cityField);
