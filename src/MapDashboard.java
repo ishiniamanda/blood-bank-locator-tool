@@ -256,7 +256,7 @@ public class MapDashboard extends Application {
                     nameLabel.setTextFill(res.donor.bloodType.equals(patientType) ? Color.web("#27ae60") : Color.web("#2980b9"));
                     
                     HBox statsBox = new HBox(15);
-                    Label supplyLbl = new Label("📦 Units: " + res.donor.supply);
+                    Label supplyLbl = new Label(" Units: " + res.donor.supply);
                     supplyLbl.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
                     Label distLbl = new Label(String.format("📍 %.1f km away", res.distance));
                     distLbl.setStyle("-fx-text-fill: #7f8c8d;");
