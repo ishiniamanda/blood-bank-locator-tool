@@ -15,6 +15,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -24,94 +25,193 @@ import java.util.*;
 
 public class MapDashboard extends Application {
 
+    // Core Data Structures
     private RedBlackTree donorTree; 
     private HashMap<String, ArrayList<Volunteer>> volunteerDatabase; 
     private HashMap<String, double[]> cityCoordinates; 
     private PriorityQueue<EmergencyRequest> requestHeap;
     private ListView<String> queueListView; 
-    private final String ADMIN_PASSWORD = "admin123";
 
-    private final DropShadow cardShadow = new DropShadow(15, Color.rgb(0, 0, 0, 0.08));
+    // UI Styles
+    private final String CARD_STYLE = "-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 30;";
+    private final String BG_COLOR = "-fx-background-color: #f0f4f8;";
+    private final DropShadow softShadow = new DropShadow(20, Color.rgb(0, 0, 0, 0.05));
+
+    // UI Containers
+    private StackPane centerArea;
+    private VBox patientView, queueView, adminView;
 
     @Override
     public void start(Stage stage) {
-
         donorTree = new RedBlackTree();
         volunteerDatabase = new HashMap<>();
         requestHeap = new PriorityQueue<>();
         queueListView = new ListView<>();
         initializeCityCoordinates();
 
-        final TabPane tabPane = new TabPane();
-        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        tabPane.setStyle("-fx-background-color: #f4f6f9; -fx-font-family: 'Segoe UI', Arial, sans-serif;");
+        // Initialize Views
+        patientView = createPatientDashboard(stage);
+        queueView = createEmergencyQueueUI();
+        adminView = createAdminPortal(stage);
 
-        Tab patientTab = new Tab("🩺 Search & Register");
-        patientTab.setContent(createPatientDashboard(stage));
-        
-        Tab queueTab = new Tab("🚑 Emergency Dispatch");
-        queueTab.setContent(createEmergencyQueueUI());
+        // Main Layout Setup
+        BorderPane root = new BorderPane();
+        root.setStyle(BG_COLOR + " -fx-font-family: 'Segoe UI', Arial, sans-serif;");
 
-        Tab adminTab = new Tab("🔒 Admin Portal");
+        // 1. Create Sidebar
+        VBox sidebar = createSidebar(stage);
+        root.setLeft(sidebar);
 
-// temporary locked screen
-VBox lockedBox = new VBox();
-lockedBox.setAlignment(Pos.CENTER);
-lockedBox.getChildren().add(new Label("🔒 Admin Access Required"));
-adminTab.setContent(lockedBox);
+        // 2. Create Center Area
+        centerArea = new StackPane();
+        centerArea.setPadding(new Insets(20));
+        centerArea.getChildren().add(patientView); // Default view
+        root.setCenter(centerArea);
 
-// when tab is selected → ask password
-adminTab.setOnSelectionChanged(event -> {
-    if (adminTab.isSelected()) {
-        boolean success = showAdminLoginDialog(stage);
-
-        if (success) {
-            adminTab.setContent(createAdminPortal(stage));
-        } else {
-            tabPane.getSelectionModel().select(0); // go back to first tab
-        }
-    }
-});
-
-        tabPane.getTabs().addAll(patientTab, queueTab, adminTab);
-
-        Scene scene = new Scene(tabPane, 750, 800);
-        stage.setTitle("Emergency Blood Bank System - Live GPS Version");
+        Scene scene = new Scene(root, 950, 750);
+        stage.setTitle("EMERGENCY BLOOD LOCATOR");
         stage.setScene(scene);
         stage.show();
     }
 
     // ==========================================
-    // 1. PATIENT DASHBOARD (SEARCH & LIVE GPS ROUTING)
+    // MODERN SIDEBAR NAVIGATION
+    // ==========================================
+    private VBox createSidebar(Stage stage) {
+        VBox sidebar = new VBox(15);
+        sidebar.setPrefWidth(240);
+        sidebar.setStyle("-fx-background-color: #1a252f; -fx-padding: 30 15 30 15;");
+        sidebar.setAlignment(Pos.TOP_CENTER);
+
+        Label logo = new Label(" EMERGENCY\nBLOOD LOCATOR");
+        logo.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        logo.setTextFill(Color.web("#e74c3c"));
+        logo.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        
+        VBox brandBox = new VBox(5, logo);
+        brandBox.setAlignment(Pos.CENTER);
+        brandBox.setPadding(new Insets(0, 0, 40, 0));
+
+        Button btnPatient = createNavButton(" Search & Route");
+        Button btnQueue = createNavButton(" Dispatch Queue");
+        Button btnAdmin = createNavButton("🔒 Admin Portal");
+
+        btnPatient.setOnAction(e -> switchView(patientView));
+        btnQueue.setOnAction(e -> switchView(queueView));
+        btnAdmin.setOnAction(e -> {
+            if (showAdminLoginDialog(stage)) {
+                switchView(adminView);
+            }
+        });
+
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+        Label version = new Label("v2.0 Advanced");
+        version.setTextFill(Color.web("#7f8c8d"));
+
+        sidebar.getChildren().addAll(brandBox, btnPatient, btnQueue, btnAdmin, spacer, version);
+        return sidebar;
+    }
+
+    private Button createNavButton(String text) {
+        Button btn = new Button(text);
+        btn.setMaxWidth(Double.MAX_VALUE);
+        btn.setAlignment(Pos.CENTER_LEFT);
+        btn.setPadding(new Insets(12, 15, 12, 15));
+        String idleStyle = "-fx-background-color: transparent; -fx-text-fill: #ecf0f1; -fx-font-size: 15px; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 8;";
+        String hoverStyle = "-fx-background-color: #34495e; -fx-text-fill: #ffffff; -fx-font-size: 15px; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 8;";
+        btn.setStyle(idleStyle);
+        btn.setOnMouseEntered(e -> btn.setStyle(hoverStyle));
+        btn.setOnMouseExited(e -> btn.setStyle(idleStyle));
+        return btn;
+    }
+
+    private void switchView(VBox view) {
+        centerArea.getChildren().clear();
+        centerArea.getChildren().add(view);
+    }
+
+    // ==========================================
+    // SECURE ADMIN LOGIN (WITH ERROR POPUP)
+    // ==========================================
+    private boolean showAdminLoginDialog(Stage owner) {
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Secure Portal");
+        dialog.setHeaderText("Admin Authentication Required");
+        dialog.initOwner(owner);
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Enter Admin Password");
+        styleInputField(passwordField);
+
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20, 10, 10, 10));
+        content.getChildren().addAll(new Label("Database Password:"), passwordField);
+
+        dialog.getDialogPane().setContent(content);
+
+        ButtonType loginButton = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(loginButton, ButtonType.CANCEL);
+
+        Platform.runLater(passwordField::requestFocus);
+
+        dialog.setResultConverter(button -> {
+            if (button == loginButton) return passwordField.getText();
+            return null;
+        });
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            if ("admin123".equals(result.get())) return true;
+            
+            Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+            errorAlert.setTitle("Authentication Failed");
+            errorAlert.setHeaderText("Access Denied");
+            errorAlert.setContentText("Incorrect Password! Please try again.");
+            errorAlert.showAndWait();
+        }
+        return false;
+    }
+
+    // ==========================================
+    // 1. PATIENT DASHBOARD (MODERN CARD Layout)
     // ==========================================
     private VBox createPatientDashboard(Stage stage) {
-        VBox layout = new VBox(20);
+        VBox layout = new VBox(25);
         layout.setAlignment(Pos.TOP_CENTER);
-        layout.setPadding(new Insets(30));
-        layout.setStyle("-fx-background-color: #f4f6f9;");
+        layout.setStyle("-fx-background-color: transparent;");
 
-        Label titleLabel = new Label("Find Compatible Blood Fast");
-        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        VBox headerBox = new VBox(5);
+        Label titleLabel = new Label("Emergency Locator");
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        titleLabel.setTextFill(Color.web("#2c3e50"));
+        Label subLabel = new Label("Find the closest compatible blood match instantly.");
+        subLabel.setTextFill(Color.web("#7f8c8d"));
+        headerBox.getChildren().addAll(titleLabel, subLabel);
         
-        VBox searchCard = new VBox(15);
-        searchCard.setStyle("-fx-background-color: white; -fx-padding: 30; -fx-background-radius: 12;");
-        searchCard.setEffect(cardShadow);
+        VBox searchCard = new VBox(20);
+        searchCard.setStyle(CARD_STYLE);
+        searchCard.setEffect(softShadow);
         searchCard.setAlignment(Pos.CENTER);
 
+        HBox inputsBox = new HBox(15);
+        inputsBox.setAlignment(Pos.CENTER);
         TextField bloodField = new TextField(); bloodField.setPromptText("Blood Type (e.g., A+)");
-        TextField cityField = new TextField(); cityField.setPromptText("Enter City (for list distance)");
+        TextField cityField = new TextField(); cityField.setPromptText("Your City (e.g., Colombo)");
+        bloodField.setPrefWidth(200); cityField.setPrefWidth(250);
         styleInputField(bloodField); styleInputField(cityField);
+        inputsBox.getChildren().addAll(bloodField, cityField);
         
-        Button searchButton = new Button("🔍 SEARCH EMERGENCY");
+        HBox btnRow = new HBox(15);
+        btnRow.setAlignment(Pos.CENTER);
+        Button searchButton = new Button("SEARCH EMERGENCY");
         stylePrimaryButton(searchButton, "#e74c3c", "#c0392b");
-
-        Button registerBtn = new Button("🩸 BECOME A DONOR");
+        Button registerBtn = new Button("BECOME A DONOR");
         stylePrimaryButton(registerBtn, "#27ae60", "#2ecc71");
         registerBtn.setOnAction(e -> openVolunteerRegistrationPopup(stage));
+        btnRow.getChildren().addAll(searchButton, registerBtn);
 
-        HBox btnRow = new HBox(15, searchButton, registerBtn);
-        btnRow.setAlignment(Pos.CENTER);
-        searchCard.getChildren().addAll(bloodField, cityField, btnRow);
+        searchCard.getChildren().addAll(inputsBox, btnRow);
 
         VBox resultsBox = new VBox(15);
         resultsBox.setAlignment(Pos.TOP_CENTER);
@@ -127,7 +227,7 @@ adminTab.setOnSelectionChanged(event -> {
 
             double[] cityCoords = getCoordinatesFromCity(userCity);
             if (cityCoords == null) {
-                resultsBox.getChildren().add(createAlertMessage("❌ Location not found."));
+                resultsBox.getChildren().add(createAlertMessage("Location not found."));
                 return;
             }
 
@@ -143,54 +243,63 @@ adminTab.setOnSelectionChanged(event -> {
             }
 
             if (!hospitalResults.isEmpty()) {
-                hospitalResults.sort((a, b) -> Double.compare(a.distance, b.distance));
-                VBox cards = new VBox(10);
+                hospitalResults.sort(Comparator.comparingDouble(a -> a.distance));
+                VBox cards = new VBox(12);
                 for (HospitalResult res : hospitalResults) {
-                    HBox card = new HBox(15);
-                    card.setStyle("-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 10;");
-                    card.setEffect(new DropShadow(10, Color.rgb(0,0,0,0.05)));
+                    HBox card = new HBox(20);
+                    card.setStyle("-fx-background-color: #f8f9fa; -fx-padding: 20; -fx-background-radius: 8; -fx-border-color: #e0e0e0; -fx-border-radius: 8;");
+                    card.setAlignment(Pos.CENTER_LEFT);
                     
                     VBox info = new VBox(5);
-                    Label name = new Label(res.donor.name + " (" + res.donor.bloodType + ")");
-                    name.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-                    name.setStyle(res.donor.bloodType.equals(patientType) ? "-fx-text-fill: #27ae60;" : "-fx-text-fill: #2980b9;");
-                    info.getChildren().addAll(name, new Label("Supply: " + res.donor.supply), new Label(String.format("📍 Approx. %.1f km", res.distance)));
+                    Label nameLabel = new Label(res.donor.name + " (" + res.donor.bloodType + ")");
+                    nameLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+                    nameLabel.setTextFill(res.donor.bloodType.equals(patientType) ? Color.web("#27ae60") : Color.web("#2980b9"));
                     
+                    HBox statsBox = new HBox(15);
+                    Label supplyLbl = new Label("📦 Units: " + res.donor.supply);
+                    supplyLbl.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
+                    Label distLbl = new Label(String.format("📍 %.1f km away", res.distance));
+                    distLbl.setStyle("-fx-text-fill: #7f8c8d;");
+                    statsBox.getChildren().addAll(supplyLbl, distLbl);
+                    
+                    info.getChildren().addAll(nameLabel, statsBox);
                     Region s = new Region(); HBox.setHgrow(s, Priority.ALWAYS);
                     
-                    // --- LIVE GPS ROUTING FIX ---
-                    Button map = new Button("View Route 🗺️"); 
+                    Button map = new Button("Start Route 🗺️"); 
                     stylePrimaryButton(map, "#3498db", "#2980b9");
                     map.setOnAction(ev -> {
-                        String destination = res.donor.lat + "," + res.donor.lon;
-                        // Using the official directions API with no origin forces the browser 
-                        // to use the user's real-time GPS location.
-                        String url = "https://www.google.com/maps/dir/?api=1&destination=" 
-                                   + destination + "&travelmode=driving";
+                        String start = userCity.replace(" ", "+");
+                        String dest = res.donor.lat + "," + res.donor.lon;
+                        String url = "https://www.google.com/maps/dir/?api=1&origin=" + start + "&destination=" + dest + "&travelmode=driving";
                         getHostServices().showDocument(url);
                     });
 
-                    card.getChildren().addAll(info, s, map); cards.getChildren().add(card);
+                    card.getChildren().addAll(info, s, map); 
+                    cards.getChildren().add(card);
                 }
                 ScrollPane scroll = new ScrollPane(cards);
-                scroll.setPrefHeight(350); scroll.getStyleClass().add("edge-to-edge");
+                scroll.setPrefHeight(380); scroll.setFitToWidth(true); scroll.setStyle("-fx-background-color: transparent;");
                 resultsBox.getChildren().add(scroll);
             } else {
-                // FALLBACK TO VOLUNTEERS
-                Label warning = new Label("⚠️ No nearby hospitals. Searching Volunteers...");
+                Label warning = new Label("⚠️ No nearby hospitals found. Searching registered heroes...");
                 warning.setStyle("-fx-text-fill: #e67e22; -fx-background-color: #fdebd0; -fx-padding: 10; -fx-background-radius: 5;");
                 resultsBox.getChildren().add(warning);
+                
                 List<VolunteerResult> volRes = new ArrayList<>();
                 for (String comp : getCompatibleBloodTypes(patientType)) {
                     ArrayList<Volunteer> vols = volunteerDatabase.get(comp);
                     if (vols != null) for(Volunteer v : vols) volRes.add(new VolunteerResult(v, calculateDistance(cityCoords[0], cityCoords[1], v.lat, v.lon)));
                 }
+                
                 if(!volRes.isEmpty()) {
                     volRes.sort((a,b) -> Double.compare(a.distance, b.distance));
-                    VBox vCards = new VBox(10);
+                    VBox vCards = new VBox(12);
                     for(VolunteerResult vr : volRes) {
-                        HBox vCard = new HBox(15); vCard.setStyle("-fx-background-color: white; -fx-padding: 20; -fx-border-color: #f39c12; -fx-border-radius: 10; -fx-border-width: 2;");
-                        VBox vInfo = new VBox(5); vInfo.getChildren().addAll(new Label(vr.volunteer.name + " ("+vr.volunteer.bloodType+")"), new Label("Age: " + vr.volunteer.age + " | " + String.format("%.1f km", vr.distance)));
+                        HBox vCard = new HBox(20); vCard.setStyle("-fx-background-color: #fffaf0; -fx-padding: 20; -fx-border-color: #f39c12; -fx-border-radius: 8; -fx-border-width: 1;");
+                        VBox vInfo = new VBox(5);
+                        Label vName = new Label(vr.volunteer.name + " (" + vr.volunteer.bloodType + ")");
+                        vName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18)); vName.setTextFill(Color.web("#d35400"));
+                        vInfo.getChildren().addAll(vName, new Label(String.format("📍 %.1f km away", vr.distance)));
                         Region vs = new Region(); HBox.setHgrow(vs, Priority.ALWAYS);
                         Button vBtn = new Button("View Info"); stylePrimaryButton(vBtn, "#f39c12", "#e67e22");
                         vBtn.setOnAction(ev -> showVolunteerDetailsPopup(vr.volunteer));
@@ -198,109 +307,116 @@ adminTab.setOnSelectionChanged(event -> {
                         cBtn.setOnAction(ev -> getHostServices().showDocument("tel:" + vr.volunteer.phone));
                         vCard.getChildren().addAll(vInfo, vs, new HBox(10, vBtn, cBtn)); vCards.getChildren().add(vCard);
                     }
-                    resultsBox.getChildren().add(new ScrollPane(vCards));
+                    ScrollPane vScroll = new ScrollPane(vCards); vScroll.setPrefHeight(380); vScroll.setFitToWidth(true);
+                    resultsBox.getChildren().add(vScroll);
+                } else {
+                    resultsBox.getChildren().add(createAlertMessage("No hospitals or volunteers found nearby."));
                 }
             }
         });
-        layout.getChildren().addAll(titleLabel, searchCard, resultsBox);
+        
+        layout.getChildren().addAll(headerBox, searchCard, resultsBox);
         return layout;
     }
 
     // ==========================================
-    // 2. ADMIN PORTAL (ADVANCED DASHBOARD)
+    // 2. ADMIN PORTAL (CLEAN DASHBOARD)
     // ==========================================
     private VBox createAdminPortal(Stage stage) {
-        VBox mainLayout = new VBox(25);
-        mainLayout.setAlignment(Pos.TOP_CENTER);
-        mainLayout.setPadding(new Insets(30));
-        mainLayout.setStyle("-fx-background-color: #f4f6f9;");
+        VBox layout = new VBox(25);
+        layout.setAlignment(Pos.TOP_LEFT);
+        Label dashTitle = new Label("System Administration");
+        dashTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        dashTitle.setTextFill(Color.web("#2c3e50"));
 
-        HBox contentArea = new HBox(30); contentArea.setAlignment(Pos.TOP_CENTER);
+        HBox contentArea = new HBox(30); 
+        contentArea.setAlignment(Pos.TOP_LEFT);
 
-        VBox manualEntryCard = new VBox(20); manualEntryCard.setMinWidth(380);
-        manualEntryCard.setStyle("-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15;");
-        manualEntryCard.setEffect(cardShadow);
+        VBox manualEntryCard = new VBox(20); 
+        manualEntryCard.setMinWidth(400); manualEntryCard.setStyle(CARD_STYLE); manualEntryCard.setEffect(softShadow);
 
         GridPane formGrid = new GridPane(); formGrid.setHgap(15); formGrid.setVgap(15);
         TextField hName = new TextField(); hName.setPromptText("Hospital Name"); styleInputField(hName);
-        ComboBox<String> cityC = new ComboBox<>(); cityC.getItems().addAll(new TreeSet<>(cityCoordinates.keySet())); cityC.setPromptText("City");
-        ComboBox<String> bloodC = new ComboBox<>(); bloodC.getItems().addAll("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"); bloodC.setPromptText("Blood");
-        TextField sF = new TextField(); sF.setPromptText("Supply"); TextField dF = new TextField(); dF.setPromptText("Demand");
+        ComboBox<String> cityC = new ComboBox<>(); cityC.getItems().addAll(new TreeSet<>(cityCoordinates.keySet())); cityC.setPromptText("Select City");
+        ComboBox<String> bloodC = new ComboBox<>(); bloodC.getItems().addAll("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"); bloodC.setPromptText("Blood Group");
+        TextField sF = new TextField(); sF.setPromptText("Units Available"); TextField dF = new TextField(); dF.setPromptText("Units Needed");
         styleInputField(sF); styleInputField(dF);
 
-        formGrid.add(new Label("Name:"), 0, 0); formGrid.add(hName, 1, 0);
+        formGrid.add(new Label("Hospital:"), 0, 0); formGrid.add(hName, 1, 0);
         formGrid.add(new Label("City:"), 0, 1); formGrid.add(cityC, 1, 1);
         formGrid.add(new Label("Blood:"), 0, 2); formGrid.add(bloodC, 1, 2);
         formGrid.add(new Label("Supply:"), 0, 3); formGrid.add(sF, 1, 3);
         formGrid.add(new Label("Demand:"), 0, 4); formGrid.add(dF, 1, 4);
 
-        Button addB = new Button("Add Data"); stylePrimaryButton(addB, "#2980b9", "#1c5982"); addB.setMaxWidth(Double.MAX_VALUE);
+        Button addB = new Button("Insert Record"); 
+        stylePrimaryButton(addB, "#2980b9", "#1c5982"); addB.setMaxWidth(Double.MAX_VALUE);
+        
         Label status = new Label();
         addB.setOnAction(e -> {
             try {
                 double[] c = getCoordinatesFromCity(cityC.getValue());
                 donorTree.insert(new Donor(hName.getText(), bloodC.getValue(), c[0], c[1], Integer.parseInt(sF.getText()), Integer.parseInt(dF.getText())));
-                status.setText("✅ Added Successfully!"); status.setTextFill(Color.GREEN);
-            } catch (Exception ex) { status.setText("❌ Error Check Inputs."); status.setTextFill(Color.RED); }
+                status.setText("✅ Database Updated!"); status.setTextFill(Color.web("#27ae60"));
+            } catch (Exception ex) { status.setText("❌ Check Inputs."); status.setTextFill(Color.web("#e74c3c")); }
         });
-        manualEntryCard.getChildren().addAll(new Label("Manual Hospital Entry"), new Separator(), formGrid, addB, status);
+        manualEntryCard.getChildren().addAll(new Label("Manual Entry"), new Separator(), formGrid, addB, status);
 
-        VBox bulkCard = new VBox(25); bulkCard.setMinWidth(300);
-        bulkCard.setStyle("-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15;");
-        bulkCard.setEffect(cardShadow);
-
-        Button loadB = new Button("Upload CSV"); stylePrimaryButton(loadB, "#f39c12", "#d35400");
-        Label bulkStatus = new Label("No file loaded.");
+        VBox bulkCard = new VBox(20); bulkCard.setMinWidth(300); bulkCard.setStyle(CARD_STYLE); bulkCard.setEffect(softShadow);
+        Button loadB = new Button("Upload CSV File"); stylePrimaryButton(loadB, "#f39c12", "#d35400");
+        Label bulkStatus = new Label("Waiting for file...");
         loadB.setOnAction(e -> {
             java.io.File f = new FileChooser().showOpenDialog(stage);
             if(f != null) {
-                bulkStatus.setText("⏳ Processing 150+ records...");
+                bulkStatus.setText("⏳ Processing...");
                 Thread importThread = new Thread(() -> {
                     donorTree = new RedBlackTree(); 
                     int count = loadDatabaseFromCSV(f.getAbsolutePath());
-                    Platform.runLater(() -> {
-                        bulkStatus.setText("✅ Loaded " + count + " records in seconds.");
-                        bulkStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                    });
+                    Platform.runLater(() -> { bulkStatus.setText("✅ Indexed " + count + " records."); bulkStatus.setTextFill(Color.web("#27ae60")); });
                 });
                 importThread.setDaemon(true); importThread.start();
             }
         });
-        bulkCard.getChildren().addAll(new Label("Bulk CSV Upload"), new Separator(), loadB, bulkStatus);
+        bulkCard.getChildren().addAll(new Label("Bulk Import"), new Separator(), loadB, bulkStatus);
 
         contentArea.getChildren().addAll(manualEntryCard, bulkCard);
-        mainLayout.getChildren().addAll(new Label("Database Administration Portal"), contentArea);
-        return mainLayout;
+        layout.getChildren().addAll(dashTitle, contentArea);
+        return layout;
     }
 
     // ==========================================
-    // 3. VOLUNTEER REGISTRATION (IMPROVED UI)
+    // VOLUNTEER REGISTRATION (FIXED ELIGIBILITY)
     // ==========================================
     private void openVolunteerRegistrationPopup(Stage parentStage) {
         Stage popupStage = new Stage();
         popupStage.initOwner(parentStage);
         popupStage.initModality(Modality.APPLICATION_MODAL);
-        popupStage.setTitle("Volunteer Donor Registration");
+        popupStage.setTitle("Hero Registration");
 
         VBox mainLayout = new VBox(0);
         mainLayout.setStyle("-fx-background-color: white;");
 
-        VBox eligibilityPane = new VBox(8);
-        eligibilityPane.setPadding(new Insets(15));
-        eligibilityPane.setStyle("-fx-background-color: #fdf2f2; -fx-border-color: #e74c3c; -fx-border-width: 0 0 2 0;");
-        Label eTitle = new Label("Basic Donor Eligibility Criteria");
-        eTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15)); eTitle.setTextFill(Color.web("#c0392b"));
-        Label eList = new Label("• Aged 18–60 years.\n• Minimum 4 months between donations.\n• Weight above 50 kg.\n• Not pregnant; free from illness.");
-        eList.setTextFill(Color.web("#7f8c8d")); eligibilityPane.getChildren().addAll(eTitle, eList);
+        VBox eligibilityPane = new VBox(10);
+        eligibilityPane.setPadding(new Insets(20));
+        eligibilityPane.setStyle("-fx-background-color: #fff5f5; -fx-border-color: #ffcccc; -fx-border-width: 0 0 1 0;");
+        
+        Label eTitle = new Label("Eligibility Requirements");
+        eTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 17)); eTitle.setTextFill(Color.web("#e74c3c"));
+        
+        String criteria = "• 18–60 years old\n• Minimum 4 months since last donation\n• Over 50 kg\n• Not pregnant or ill";
+        Label eList = new Label(criteria);
+        eList.setTextFill(Color.web("#555555")); eList.setWrapText(true); eList.setLineSpacing(4);
+        eList.setMinHeight(Region.USE_PREF_SIZE);
 
-        GridPane grid = new GridPane(); grid.setPadding(new Insets(20)); grid.setHgap(10); grid.setVgap(12);
+        eligibilityPane.getChildren().addAll(eTitle, eList);
+
+        GridPane grid = new GridPane(); grid.setPadding(new Insets(25)); grid.setHgap(15); grid.setVgap(15);
         TextField n = new TextField(); n.setPromptText("Full Name"); styleInputField(n);
         TextField p = new TextField(); p.setPromptText("Phone Number"); styleInputField(p);
         ComboBox<String> city = new ComboBox<>(); city.getItems().addAll(new TreeSet<>(cityCoordinates.keySet())); city.setPromptText("City");
         ComboBox<String> b = new ComboBox<>(); b.getItems().addAll("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"); b.setPromptText("Blood");
         TextField a = new TextField(); a.setPromptText("Age"); styleInputField(a);
         TextField w = new TextField(); w.setPromptText("Weight"); styleInputField(w);
-        CheckBox preg = new CheckBox("Are you currently pregnant?"); preg.setStyle("-fx-text-fill: #34495e;");
+        CheckBox preg = new CheckBox("Currently pregnant?");
 
         grid.add(new Label("Name:"), 0, 0); grid.add(n, 1, 0);
         grid.add(new Label("Phone:"), 0, 1); grid.add(p, 1, 1);
@@ -310,36 +426,40 @@ adminTab.setOnSelectionChanged(event -> {
         grid.add(new Label("Weight:"), 0, 5); grid.add(w, 1, 5);
         grid.add(preg, 1, 6);
 
-        VBox footer = new VBox(10); footer.setPadding(new Insets(10, 20, 20, 20));
-        Button sub = new Button("Register HERO"); stylePrimaryButton(sub, "#27ae60", "#219150"); sub.setMaxWidth(Double.MAX_VALUE);
+        VBox footer = new VBox(10); footer.setPadding(new Insets(10, 25, 25, 25));
+        Button sub = new Button("Register Hero"); stylePrimaryButton(sub, "#27ae60", "#219150"); sub.setMaxWidth(Double.MAX_VALUE);
         Label status = new Label(); footer.getChildren().addAll(sub, status);
 
         sub.setOnAction(ev -> {
             try {
                 int ageVal = Integer.parseInt(a.getText()); double weightVal = Double.parseDouble(w.getText());
-                if (ageVal < 18 || weightVal < 50 || preg.isSelected()) { status.setText("❌ Criteria not met."); return; }
+                if (ageVal < 18 || weightVal < 50 || preg.isSelected()) { status.setText("❌ Criteria not met."); status.setTextFill(Color.RED); return; }
                 double[] coords = getCoordinatesFromCity(city.getValue());
                 Volunteer v = new Volunteer(n.getText(), b.getValue(), p.getText(), coords[0], coords[1], ageVal, weightVal, 0.0, preg.isSelected());
                 volunteerDatabase.putIfAbsent(v.bloodType, new ArrayList<>());
                 volunteerDatabase.get(v.bloodType).add(v); saveVolunteerToFile(v);
-                status.setText("✅ Hero Registered!");
+                status.setText("✅ Hero Registered!"); status.setTextFill(Color.GREEN);
                 new Timeline(new KeyFrame(Duration.seconds(1.5), e -> popupStage.close())).play();
-            } catch (Exception ex) { status.setText("❌ Check inputs."); }
+            } catch (Exception ex) { status.setText("❌ Check inputs."); status.setTextFill(Color.RED); }
         });
 
         mainLayout.getChildren().addAll(eligibilityPane, grid, footer);
-        popupStage.setScene(new Scene(mainLayout, 420, 620)); popupStage.show();
+        popupStage.setScene(new Scene(mainLayout, 400, 650)); popupStage.show();
     }
 
     // ==========================================
-    // 4. EMERGENCY DISPATCH QUEUE
+    // DISPATCH & UTILITY
     // ==========================================
     private VBox createEmergencyQueueUI() {
-        VBox v = new VBox(15); v.setPadding(new Insets(30)); v.setAlignment(Pos.TOP_CENTER);
-        v.getChildren().addAll(new Label("🚑 Emergency Dispatch Priority Queue"), queueListView);
-        Button p = new Button("PROCESS NEXT EMERGENCY"); stylePrimaryButton(p, "#c0392b", "#a93226");
+        VBox v = new VBox(20); v.setAlignment(Pos.TOP_LEFT);
+        Label dashTitle = new Label("Active Dispatch Queue");
+        dashTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        VBox listCard = new VBox(15); listCard.setStyle(CARD_STYLE); listCard.setEffect(softShadow);
+        queueListView.setPrefHeight(400);
+        Button p = new Button("DISPATCH NEXT EMERGENCY"); stylePrimaryButton(p, "#c0392b", "#a93226"); p.setMaxWidth(Double.MAX_VALUE);
         p.setOnAction(e -> { if(!requestHeap.isEmpty()){ requestHeap.poll(); updateQueueDisplay(); } });
-        v.getChildren().add(p); return v;
+        listCard.getChildren().addAll(queueListView, p); v.getChildren().addAll(dashTitle, listCard); 
+        return v;
     }
 
     private void updateQueueDisplay() {
@@ -347,9 +467,17 @@ adminTab.setOnSelectionChanged(event -> {
         for(EmergencyRequest r : requestHeap) queueListView.getItems().add(r.toString());
     }
 
-    // ==========================================
-    // 5. UTILITY & DATA HELPER METHODS
-    // ==========================================
+    private void showVolunteerDetailsPopup(Volunteer v) {
+        Stage s = new Stage(); s.setTitle("Hero Profile");
+        GridPane g = new GridPane(); g.setPadding(new Insets(25)); g.setHgap(15); g.setVgap(15);
+        g.setStyle("-fx-background-color: white;");
+        g.add(new Label("Name:"), 0, 0); g.add(new Label(v.name), 1, 0);
+        g.add(new Label("Age:"), 0, 1); g.add(new Label(String.valueOf(v.age)), 1, 1);
+        g.add(new Label("Weight:"), 0, 2); g.add(new Label(v.weight + " kg"), 1, 2);
+        g.add(new Label("Phone:"), 0, 3); g.add(new Label(v.phone), 1, 3);
+        s.setScene(new Scene(g, 320, 280)); s.show();
+    }
+
     private void initializeCityCoordinates() {
         cityCoordinates = new HashMap<>();
         cityCoordinates.put("Colombo", new double[]{6.9271, 79.8612});
@@ -360,6 +488,18 @@ adminTab.setOnSelectionChanged(event -> {
         cityCoordinates.put("Gampaha", new double[]{7.0840, 80.0098});
         cityCoordinates.put("Kalutara", new double[]{6.5854, 79.9607});
         cityCoordinates.put("Kurunegala", new double[]{7.4818, 80.3609});
+        cityCoordinates.put("Kegalle", new double[]{7.2513, 80.3464});
+        cityCoordinates.put("Peradeniya", new double[]{7.2683, 80.5933});
+        cityCoordinates.put("Matale", new double[]{7.4675, 80.6234});
+        cityCoordinates.put("Hambantota", new double[]{6.1246, 81.1185});
+        cityCoordinates.put("Ampara", new double[]{7.2842, 81.6747});
+        cityCoordinates.put("Puttalam", new double[]{8.0330, 79.8259});
+        cityCoordinates.put("Ragama", new double[]{7.0263, 79.9142});
+        cityCoordinates.put("Trincomalee", new double[]{8.5717, 81.2335});
+        cityCoordinates.put("Matara", new double[]{5.9549, 80.5550});
+        cityCoordinates.put("Kuliyapitiya", new double[]{7.4674, 80.0402});
+        cityCoordinates.put("Kalubowila", new double[]{6.8653, 79.8733});
+        cityCoordinates.put("Ratnapura", new double[]{6.6828, 80.3992});
     }
 
     private double[] getCoordinatesFromCity(String n) {
@@ -371,13 +511,7 @@ adminTab.setOnSelectionChanged(event -> {
             Scanner s = new Scanner(c.getInputStream());
             if (!s.hasNext()) return null;
             String r = s.useDelimiter("\\A").next();
-            if (r.contains("\"lat\":\"")) {
-                double lat = Double.parseDouble(r.split("\"lat\":\"")[1].split("\"")[0]);
-                double lon = Double.parseDouble(r.split("\"lon\":\"")[1].split("\"")[0]);
-                double[] found = new double[]{lat, lon};
-                cityCoordinates.put(n.trim(), found);
-                return found;
-            }
+            if (r.contains("\"lat\":\"")) return new double[]{Double.parseDouble(r.split("\"lat\":\"")[1].split("\"")[0]), Double.parseDouble(r.split("\"lon\":\"")[1].split("\"")[0])};
         } catch (Exception e) {} return null;
     }
 
@@ -393,7 +527,9 @@ adminTab.setOnSelectionChanged(event -> {
                     if (!cityCoordinates.containsKey(cityName)) Thread.sleep(1000); 
                     double[] coords = getCoordinatesFromCity(cityName);
                     if(coords != null) {
-                        donorTree.insert(new Donor(d[0].trim(), d[2].trim(), coords[0], coords[1], Integer.parseInt(d[3].trim()), Integer.parseInt(d[4].trim())));
+                        double hLat = coords[0] + ((Math.random() - 0.5) * 0.08);
+                        double hLon = coords[1] + ((Math.random() - 0.5) * 0.08);
+                        donorTree.insert(new Donor(d[0].trim(), d[2].trim(), hLat, hLon, Integer.parseInt(d[3].trim()), Integer.parseInt(d[4].trim())));
                         count++;
                     }
                 }
@@ -401,28 +537,20 @@ adminTab.setOnSelectionChanged(event -> {
         } catch (Exception e) {} return count;
     }
 
-    private void styleInputField(TextField f) { f.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 8; -fx-border-color: #bdc3c7;"); }
+    private void styleInputField(TextField f) { f.setStyle("-fx-font-size: 15px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #bdc3c7;"); }
 
-    private void stylePrimaryButton(Button b, String c, String h) {
-        String s = "-fx-background-color: "+c+"; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 25; -fx-background-radius: 8; -fx-cursor: hand;";
-        b.setStyle(s); b.setOnMouseEntered(e -> b.setStyle("-fx-background-color: "+h+";"+s.substring(29))); b.setOnMouseExited(e -> b.setStyle(s));
-    }
-
-    private void showVolunteerDetailsPopup(Volunteer v) {
-        Stage s = new Stage(); s.setTitle("Donor Profile");
-        GridPane g = new GridPane(); g.setPadding(new Insets(20)); g.setHgap(10); g.setVgap(10);
-        g.add(new Label("Name: " + v.name), 0, 0); g.add(new Label("Age: " + v.age), 0, 1);
-        g.add(new Label("Weight: " + v.weight + " kg"), 0, 2); g.add(new Label("Blood: " + v.bloodType), 0, 3);
-        s.setScene(new Scene(g, 280, 200)); s.show();
+    private void stylePrimaryButton(Button b, String color, String hover) {
+        String base = "-fx-background-color: "+color+"; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 25; -fx-background-radius: 6; -fx-cursor: hand;";
+        b.setStyle(base); b.setOnMouseEntered(e -> b.setStyle("-fx-background-color: "+hover+";"+base.substring(29))); b.setOnMouseExited(e -> b.setStyle(base));
     }
 
     private void saveVolunteerToFile(Volunteer v) {
-        try (BufferedWriter w = new BufferedWriter(new FileWriter("volunteers.txt", true))) {
-            w.write(v.toCSV()); w.newLine();
-        } catch (IOException e) {}
+        try (BufferedWriter w = new BufferedWriter(new FileWriter("volunteers.txt", true))) { w.write(v.toCSV()); w.newLine(); } catch (IOException e) {}
     }
 
-    private Label createAlertMessage(String t) { Label l = new Label(t); l.setStyle("-fx-text-fill: #c0392b; -fx-background-color: #fadbd8; -fx-padding: 10; -fx-background-radius: 8;"); return l; }
+    private Label createAlertMessage(String t) { 
+        Label l = new Label("⚠️ " + t); l.setStyle("-fx-text-fill: #c0392b; -fx-background-color: #fadbd8; -fx-padding: 12; -fx-background-radius: 8; -fx-font-weight: bold;"); return l; 
+    }
 
     private List<String> getCompatibleBloodTypes(String t) {
         switch (t) {
@@ -439,45 +567,9 @@ adminTab.setOnSelectionChanged(event -> {
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(Math.toRadians(la1)) * Math.cos(Math.toRadians(la2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
     }
-    private boolean showAdminLoginDialog(Stage owner) {
-    Dialog<String> dialog = new Dialog<>();
-    dialog.setTitle("Admin Login");
-    dialog.initOwner(owner);
-
-    PasswordField passwordField = new PasswordField();
-    passwordField.setPromptText("Enter Admin Password");
-
-    VBox content = new VBox(10);
-    content.setPadding(new Insets(20));
-    content.getChildren().addAll(new Label("Admin Password:"), passwordField);
-
-    dialog.getDialogPane().setContent(content);
-
-    ButtonType loginButton = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
-    dialog.getDialogPane().getButtonTypes().addAll(loginButton, ButtonType.CANCEL);
-
-    dialog.setResultConverter(button -> {
-        if (button == loginButton) {
-            return passwordField.getText();
-        }
-        return null;
-    });
-
-    Optional<String> result = dialog.showAndWait();
-
-    if (result.isPresent() && result.get().equals(ADMIN_PASSWORD)) {
-        return true;
-    } else {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Access Denied");
-        alert.setHeaderText(null);
-        alert.setContentText("❌ Incorrect Password!");
-        alert.showAndWait();
-        return false;
-    }
-}
 
     public static void main(String[] args) { launch(args); }
     private static class HospitalResult { Donor donor; double distance; public HospitalResult(Donor d, double dist) { this.donor = d; this.distance = dist; } }
+
     private static class VolunteerResult { Volunteer volunteer; double distance; public VolunteerResult(Volunteer v, double dist) { this.volunteer = v; this.distance = dist; } }
 }
