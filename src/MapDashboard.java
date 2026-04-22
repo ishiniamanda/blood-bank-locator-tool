@@ -96,8 +96,8 @@ public class MapDashboard extends Application {
         brandBox.setPadding(new Insets(0, 0, 40, 0));
 
         // Navigation Buttons
-        Button btnPatient = createNavButton(" Search & Route");
-        Button btnQueue = createNavButton("Dispatch Queue");
+        Button btnPatient = createNavButton("🔍 Search & Route");
+        Button btnQueue = createNavButton("🚑 Dispatch Queue");
         Button btnAdmin = createNavButton("🔒 Admin Portal");
 
         // View Switching Logic
@@ -285,6 +285,63 @@ public class MapDashboard extends Application {
                 scroll.setStyle("-fx-background-color: transparent;");
                 scroll.setFitToWidth(true);
                 resultsBox.getChildren().add(scroll);
+            } else {
+                // VOLUNTEER SEARCH LOGIC RESTORED HERE
+                Label warning = new Label("⚠️ No nearby hospitals found. Searching registered volunteers...");
+                warning.setStyle("-fx-text-fill: #e67e22; -fx-background-color: #fdebd0; -fx-padding: 10; -fx-background-radius: 5;");
+                resultsBox.getChildren().add(warning);
+                
+                List<VolunteerResult> volRes = new ArrayList<>();
+                for (String comp : getCompatibleBloodTypes(patientType)) {
+                    ArrayList<Volunteer> vols = volunteerDatabase.get(comp);
+                    if (vols != null) {
+                        for(Volunteer v : vols) {
+                            volRes.add(new VolunteerResult(v, calculateDistance(cityCoords[0], cityCoords[1], v.lat, v.lon)));
+                        }
+                    }
+                }
+                
+                if(!volRes.isEmpty()) {
+                    volRes.sort((a,b) -> Double.compare(a.distance, b.distance));
+                    VBox vCards = new VBox(12);
+                    for(VolunteerResult vr : volRes) {
+                        HBox vCard = new HBox(20); 
+                        vCard.setStyle("-fx-background-color: #fffaf0; -fx-padding: 20; -fx-background-radius: 8; -fx-border-color: #f39c12; -fx-border-radius: 8;");
+                        vCard.setAlignment(Pos.CENTER_LEFT);
+                        
+                        VBox vInfo = new VBox(5); 
+                        Label vName = new Label(vr.volunteer.name + " (" + vr.volunteer.bloodType + ")");
+                        vName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+                        vName.setTextFill(Color.web("#d35400"));
+                        
+                        HBox vStats = new HBox(15);
+                        Label ageLbl = new Label("Age: " + vr.volunteer.age);
+                        ageLbl.setStyle("-fx-text-fill: #7f8c8d;");
+                        Label distLbl = new Label(String.format("📍 %.1f km away", vr.distance));
+                        distLbl.setStyle("-fx-text-fill: #7f8c8d;");
+                        vStats.getChildren().addAll(ageLbl, distLbl);
+                        
+                        vInfo.getChildren().addAll(vName, vStats);
+                        
+                        Region vs = new Region(); HBox.setHgrow(vs, Priority.ALWAYS);
+                        
+                        Button vBtn = new Button("View Info"); stylePrimaryButton(vBtn, "#f39c12", "#e67e22");
+                        vBtn.setOnAction(ev -> showVolunteerDetailsPopup(vr.volunteer));
+                        
+                        Button cBtn = new Button("📞 Call"); stylePrimaryButton(cBtn, "#27ae60", "#2ecc71");
+                        cBtn.setOnAction(ev -> getHostServices().showDocument("tel:" + vr.volunteer.phone));
+                        
+                        vCard.getChildren().addAll(vInfo, vs, new HBox(10, vBtn, cBtn)); 
+                        vCards.getChildren().add(vCard);
+                    }
+                    ScrollPane scroll = new ScrollPane(vCards);
+                    scroll.setPrefHeight(380);
+                    scroll.setStyle("-fx-background-color: transparent;");
+                    scroll.setFitToWidth(true);
+                    resultsBox.getChildren().add(scroll);
+                } else {
+                    resultsBox.getChildren().add(createAlertMessage("No hospitals or volunteers found nearby for this blood type."));
+                }
             }
         });
         
@@ -414,7 +471,7 @@ public class MapDashboard extends Application {
         grid.add(preg, 1, 6);
 
         VBox footer = new VBox(10); footer.setPadding(new Insets(10, 25, 25, 25));
-        Button sub = new Button("Register Hero"); stylePrimaryButton(sub, "#27ae60", "#219150"); sub.setMaxWidth(Double.MAX_VALUE);
+        Button sub = new Button("Register"); stylePrimaryButton(sub, "#27ae60", "#219150"); sub.setMaxWidth(Double.MAX_VALUE);
         Label status = new Label(); footer.getChildren().addAll(sub, status);
 
         sub.setOnAction(ev -> {
@@ -471,6 +528,33 @@ public class MapDashboard extends Application {
     // ==========================================
     // UTILITY & HELPER METHODS
     // ==========================================
+    
+    // Show Volunteer Info Popup
+    private void showVolunteerDetailsPopup(Volunteer v) {
+        Stage s = new Stage(); s.setTitle("Hero Profile");
+        GridPane g = new GridPane(); g.setPadding(new Insets(25)); g.setHgap(15); g.setVgap(15);
+        g.setStyle("-fx-background-color: white; -fx-font-family: 'Segoe UI';");
+        
+        Label title = new Label("Volunteer Details");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        title.setTextFill(Color.web("#2c3e50"));
+        
+        g.add(title, 0, 0, 2, 1);
+        g.add(new Label("Name:"), 0, 1); g.add(new Label(v.name), 1, 1);
+        g.add(new Label("Age:"), 0, 2); g.add(new Label(String.valueOf(v.age)), 1, 2);
+        g.add(new Label("Weight:"), 0, 3); g.add(new Label(v.weight + " kg"), 1, 3);
+        g.add(new Label("Phone:"), 0, 4); g.add(new Label(v.phone), 1, 4);
+        g.add(new Label("Blood Group:"), 0, 5); 
+        
+        Label blood = new Label(v.bloodType);
+        blood.setStyle("-fx-font-weight: bold; -fx-text-fill: #e74c3c;");
+        g.add(blood, 1, 5);
+
+        s.setScene(new Scene(g, 320, 300)); 
+        s.initModality(Modality.APPLICATION_MODAL);
+        s.show();
+    }
+
     private void initializeCityCoordinates() {
         cityCoordinates = new HashMap<>();
         cityCoordinates.put("Colombo", new double[]{6.9271, 79.8612});
@@ -569,4 +653,5 @@ public class MapDashboard extends Application {
 
     public static void main(String[] args) { launch(args); }
     private static class HospitalResult { Donor donor; double distance; public HospitalResult(Donor d, double dist) { this.donor = d; this.distance = dist; } }
+    private static class VolunteerResult { Volunteer volunteer; double distance; public VolunteerResult(Volunteer v, double dist) { this.volunteer = v; this.distance = dist; } }
 }
