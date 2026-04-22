@@ -84,11 +84,11 @@ public class MapDashboard extends Application {
         sidebar.setAlignment(Pos.TOP_CENTER);
 
         // Logo / Title area
-        Label logo = new Label("🩸 NIBM");
+        Label logo = new Label("EMERGENCY ");
         logo.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
         logo.setTextFill(Color.web("#e74c3c"));
         Label subTitle = new Label("Blood Bank System");
-        subTitle.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
+        subTitle.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 20));
         subTitle.setTextFill(Color.web("#bdc3c7"));
         
         VBox brandBox = new VBox(5, logo, subTitle);
@@ -96,8 +96,8 @@ public class MapDashboard extends Application {
         brandBox.setPadding(new Insets(0, 0, 40, 0));
 
         // Navigation Buttons
-        Button btnPatient = createNavButton("🔍 Search & Route");
-        Button btnQueue = createNavButton("🚑 Dispatch Queue");
+        Button btnPatient = createNavButton(" Search & Route");
+        Button btnQueue = createNavButton("Dispatch Queue");
         Button btnAdmin = createNavButton("🔒 Admin Portal");
 
         // View Switching Logic
