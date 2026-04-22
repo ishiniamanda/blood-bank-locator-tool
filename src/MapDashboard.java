@@ -390,7 +390,7 @@ public class MapDashboard extends Application {
         Stage popupStage = new Stage();
         popupStage.initOwner(parentStage);
         popupStage.initModality(Modality.APPLICATION_MODAL);
-        popupStage.setTitle("Hero Registration");
+        popupStage.setTitle("Registre Here");
 
         VBox mainLayout = new VBox(0);
         mainLayout.setStyle("-fx-background-color: white;");
