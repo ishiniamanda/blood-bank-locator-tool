@@ -427,7 +427,7 @@ public class MapDashboard extends Application {
         grid.add(preg, 1, 6);
 
         VBox footer = new VBox(10); footer.setPadding(new Insets(10, 25, 25, 25));
-        Button sub = new Button("Register Hero"); stylePrimaryButton(sub, "#27ae60", "#219150"); sub.setMaxWidth(Double.MAX_VALUE);
+        Button sub = new Button("Donor"); stylePrimaryButton(sub, "#27ae60", "#219150"); sub.setMaxWidth(Double.MAX_VALUE);
         Label status = new Label(); footer.getChildren().addAll(sub, status);
 
         sub.setOnAction(ev -> {
