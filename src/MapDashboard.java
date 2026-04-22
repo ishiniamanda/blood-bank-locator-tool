@@ -438,7 +438,7 @@ public class MapDashboard extends Application {
                 Volunteer v = new Volunteer(n.getText(), b.getValue(), p.getText(), coords[0], coords[1], ageVal, weightVal, 0.0, preg.isSelected());
                 volunteerDatabase.putIfAbsent(v.bloodType, new ArrayList<>());
                 volunteerDatabase.get(v.bloodType).add(v); saveVolunteerToFile(v);
-                status.setText("✅ Hero Registered!"); status.setTextFill(Color.GREEN);
+                status.setText("✅ Donor Registered!"); status.setTextFill(Color.GREEN);
                 new Timeline(new KeyFrame(Duration.seconds(1.5), e -> popupStage.close())).play();
             } catch (Exception ex) { status.setText("❌ Check inputs."); status.setTextFill(Color.RED); }
         });
