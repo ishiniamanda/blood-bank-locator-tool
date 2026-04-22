@@ -89,7 +89,7 @@ public class MapDashboard extends Application {
         logo.setTextFill(Color.web("#e74c3c"));
         Label subTitle = new Label("Blood Bank System");
         subTitle.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 20));
-        subTitle.setTextFill(Color.web("#bdc3c7"));
+        subTitle.setTextFill(Color.web("#e74c3c"));
         
         VBox brandBox = new VBox(5, logo, subTitle);
         brandBox.setAlignment(Pos.CENTER);
