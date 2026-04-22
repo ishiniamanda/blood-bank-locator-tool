@@ -52,14 +52,70 @@ public class MapDashboard extends Application {
         queueTab.setContent(createEmergencyQueueUI());
 
         Tab adminTab = new Tab("🔒 Admin Portal");
-        adminTab.setContent(createAdminPortal(stage));
+        adminTab.setContent(createAdminPortal(stage)); 
 
         tabPane.getTabs().addAll(patientTab, queueTab, adminTab);
+
+        // --- THE TAB LISTENER FOR YOUR PASSWORD DIALOG ---
+        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab == adminTab) {
+                boolean isAuthenticated = showAdminLoginDialog(stage);
+                if (!isAuthenticated) {
+                    // If login fails or is cancelled, kick them back to the previous tab
+                    Platform.runLater(() -> tabPane.getSelectionModel().select(oldTab));
+                }
+            }
+        });
 
         Scene scene = new Scene(tabPane, 750, 800);
         stage.setTitle("Emergency Blood Bank System - Accurate Distance Version");
         stage.setScene(scene);
         stage.show();
+    }
+
+    // ==========================================
+    // YOUR CUSTOM ADMIN LOGIN DIALOG
+    // ==========================================
+    private boolean showAdminLoginDialog(Stage owner) {
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Admin Login");
+        dialog.setHeaderText("Secure Database Access");
+        dialog.initOwner(owner);
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Enter Admin Password");
+
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        content.getChildren().addAll(new Label("Admin Password:"), passwordField);
+
+        dialog.getDialogPane().setContent(content);
+
+        ButtonType loginButton = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(loginButton, ButtonType.CANCEL);
+
+        // Auto-focus the password field so you don't have to click it
+        Platform.runLater(() -> passwordField.requestFocus());
+
+        dialog.setResultConverter(button -> {
+            if (button == loginButton) {
+                return passwordField.getText();
+            }
+            return null;
+        });
+
+        Optional<String> result = dialog.showAndWait();
+        
+        // Checks if they entered something, and if it equals the password
+        if (result.isPresent()) {
+            if ("admin123".equals(result.get())) {
+                return true; // Password is correct
+            } else {
+                createAlertMessage("Incorrect Password! Access Denied.");
+                return false;
+            }
+        }
+        return false; // Dialog was cancelled
     }
 
     // ==========================================
@@ -144,7 +200,6 @@ public class MapDashboard extends Application {
                     map.setOnAction(ev -> {
                         String start = userCity.replace(" ", "+");
                         String dest = res.donor.lat + "," + res.donor.lon;
-                        // Use actual string concatenation to avoid URL parsers breaking the link
                         String url = "https://www.google.com/maps/dir/?api=1&origin=" + start + "&destination=" + dest + "&travelmode=driving";
                         getHostServices().showDocument(url);
                     });
@@ -185,7 +240,7 @@ public class MapDashboard extends Application {
     }
 
     // ==========================================
-    // 2. ADMIN PORTAL (ADVANCED DASHBOARD)
+    // 2. ADMIN PORTAL (DASHBOARD)
     // ==========================================
     private VBox createAdminPortal(Stage stage) {
         VBox mainLayout = new VBox(25);
@@ -247,7 +302,7 @@ public class MapDashboard extends Application {
         bulkCard.getChildren().addAll(new Label("Bulk CSV Upload"), new Separator(), loadB, bulkStatus);
 
         contentArea.getChildren().addAll(manualEntryCard, bulkCard);
-        mainLayout.getChildren().addAll(new Label("Database Administration Portal"), contentArea);
+        mainLayout.getChildren().addAll(new Label("Database Administration Dashboard"), contentArea);
         return mainLayout;
     }
 
@@ -371,7 +426,6 @@ public class MapDashboard extends Application {
         } catch (Exception e) {} return null;
     }
 
-    // THE FIX FOR 0.0 KM DISTANCES IS HERE
     private int loadDatabaseFromCSV(String p) {
         int count = 0;
         try (Scanner sc = new Scanner(new java.io.File(p))) {
@@ -384,11 +438,8 @@ public class MapDashboard extends Application {
                     if (!cityCoordinates.containsKey(cityName)) Thread.sleep(1000); 
                     double[] coords = getCoordinatesFromCity(cityName);
                     if(coords != null) {
-                        // Adds a random Geographic Jitter (scattering hospitals around the city 1km to 6km away)
-                        // This guarantees the math won't evaluate to 0.0 km
                         double latOffset = (Math.random() - 0.5) * 0.08; 
                         double lonOffset = (Math.random() - 0.5) * 0.08;
-                        
                         double hLat = coords[0] + latOffset;
                         double hLon = coords[1] + lonOffset;
 
@@ -421,7 +472,13 @@ public class MapDashboard extends Application {
         } catch (IOException e) {}
     }
 
-    private Label createAlertMessage(String t) { Label l = new Label(t); l.setStyle("-fx-text-fill: #c0392b; -fx-background-color: #fadbd8; -fx-padding: 10; -fx-background-radius: 8;"); return l; }
+    private Label createAlertMessage(String t) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setHeaderText(null);
+        alert.setContentText(t);
+        alert.showAndWait();
+        Label l = new Label(t); l.setStyle("-fx-text-fill: #c0392b; -fx-background-color: #fadbd8; -fx-padding: 10; -fx-background-radius: 8;"); return l; 
+    }
 
     private List<String> getCompatibleBloodTypes(String t) {
         switch (t) {
