@@ -427,7 +427,7 @@ public class MapDashboard extends Application {
         grid.add(preg, 1, 6);
 
         VBox footer = new VBox(10); footer.setPadding(new Insets(10, 25, 25, 25));
-        Button sub = new Button("Donor"); stylePrimaryButton(sub, "#27ae60", "#219150"); sub.setMaxWidth(Double.MAX_VALUE);
+        Button sub = new Button("SAVE"); stylePrimaryButton(sub, "#27ae60", "#219150"); sub.setMaxWidth(Double.MAX_VALUE);
         Label status = new Label(); footer.getChildren().addAll(sub, status);
 
         sub.setOnAction(ev -> {
@@ -468,7 +468,7 @@ public class MapDashboard extends Application {
     }
 
     private void showVolunteerDetailsPopup(Volunteer v) {
-        Stage s = new Stage(); s.setTitle("Hero Profile");
+        Stage s = new Stage(); s.setTitle("Donor Profile");
         GridPane g = new GridPane(); g.setPadding(new Insets(25)); g.setHgap(15); g.setVgap(15);
         g.setStyle("-fx-background-color: white;");
         g.add(new Label("Name:"), 0, 0); g.add(new Label(v.name), 1, 0);
