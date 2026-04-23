@@ -5,7 +5,7 @@ public class Main {
 
         Graph g = new Graph();
 
-        // GRAPH DATA
+       
         g.addEdge("A", "B", 4);
         g.addEdge("A", "C", 6);
         g.addEdge("A", "D", 7);
