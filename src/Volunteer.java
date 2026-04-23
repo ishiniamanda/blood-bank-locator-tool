@@ -21,7 +21,7 @@ public class Volunteer {
         this.isPregnant = isPregnant;
     }
     
-    // This helper method makes it incredibly easy to save to your friend's text file!
+    
     public String toCSV() {
         return name + "," + bloodType + "," + phone + "," + lat + "," + lon + "," + age + "," + weight + "," + hemoglobin + "," + isPregnant;
     }
