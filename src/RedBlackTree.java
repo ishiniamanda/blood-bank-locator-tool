@@ -5,7 +5,7 @@ public class RedBlackTree {
     private static final boolean BLACK = false;
 
     class Node {
-        String bloodType; // The search key
+        String bloodType; 
         ArrayList<Donor> donors; // The list of all hospitals with this blood type
         Node left, right, parent;
         boolean color;
