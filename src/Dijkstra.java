@@ -42,7 +42,7 @@ public class Dijkstra {
                     int weight = neighbor.getValue();
                     int newDist = distances.get(u) + weight;
 
-                    // If a shorter path is found, update the record
+                   
                     if (newDist < distances.get(v)) {
                         distances.put(v, newDist);
                         pq.add(new Node(v, newDist));
